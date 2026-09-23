@@ -1,0 +1,6 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Keep the default flutter_lints rule set. Add project-specific
+    # overrides here if you find a rule too noisy for this codebase.
