@@ -12,6 +12,19 @@ class AppColors {
   /// App shell / launcher background.
   static const Color shell = Color(0xFF1A1A2E);
 
+  /// Figma Styleguide tokens used by the home screen ("Home - L0").
+  static const Color screenBackground = Color(0xFF0F1A3D); // background/screen
+  static const Color surface = Color(0x24FFFFFF); // background/surface  rgba(255,255,255,.14)
+  static const Color borderDefault = Color(0x47FFFFFF); // border/default rgba(255,255,255,.28)
+  static const Color brandYellow = Color(0xFFFFC53D); // brand/yellow
+  static const Color textPrimary = Color(0xFFFFFFFF); // text/primary
+  static const Color textOnLight = Color(0xFF1B2340); // text/on-light
+  static const Color textMuted = Color(0xFFBABABA); // text/muted
+
+  /// background/surface composited over background/screen — used for the
+  /// Android system navigation bar so it blends with the home bottom bar.
+  static const Color surfaceOnScreen = Color(0xFF313A58);
+
   /// Shared header icon-button background + border (the 32x32 back/help
   /// buttons used by every game screen).
   static const Color headerIconBg = Color(0x24FFFFFF); // rgba(255,255,255,.14)

@@ -20,6 +20,10 @@ class PressableCard extends StatefulWidget {
   final double pressedOffset;
   final VoidCallback? onTap;
 
+  /// Optional tint laid over the face while pressed (Figma "Pressed" state
+  /// for Game Module Card = 18% black). Null keeps the original behaviour.
+  final Color? pressedOverlayColor;
+
   const PressableCard({
     super.key,
     required this.child,
@@ -30,6 +34,7 @@ class PressableCard extends StatefulWidget {
     this.shadowOffset = 6,
     this.pressedOffset = 3,
     this.onTap,
+    this.pressedOverlayColor,
   });
 
   @override
@@ -88,7 +93,26 @@ class _PressableCardState extends State<PressableCard> {
                         : null,
                     borderRadius: radius,
                   ),
-                  child: widget.child,
+                  child: widget.pressedOverlayColor == null
+                      ? widget.child
+                      : Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            widget.child,
+                            IgnorePointer(
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 90),
+                                opacity: _pressed ? 1 : 0,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: widget.pressedOverlayColor,
+                                    borderRadius: radius,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
             ],
