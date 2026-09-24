@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Typography. The whole app uses **Baloo 2**, bundled locally in
-/// assets/fonts/ (weights 400 / 600 / 700 / 800) so text renders correctly
+/// assets/fonts/ (weights 400 / 500 / 600 / 700 / 800) so text renders correctly
 /// offline on first launch — no runtime font download.
 ///
 /// Two layers:
@@ -61,6 +61,10 @@ class AppText {
   /// Language toggle segments (EN / हिं) — Bold 15 / auto.
   static TextStyle toggle({required Color color}) =>
       AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: color);
+
+  /// Figma `stat/number` — ExtraBold 32 / 105%. Big numbers (match timer).
+  static TextStyle statNumber({Color color = const Color(0xFFFFC53D)}) =>
+      AppFonts.baloo(fontSize: 32, fontWeight: FontWeight.w800, height: 1.05, color: color);
 
   /// Logo tagline — SemiBold 12 / auto.
   static TextStyle tagline({Color color = Colors.white}) =>

@@ -21,6 +21,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/home/
+    - assets/snakes_and_ladders/
 
   # Baloo 2 (SIL Open Font License — see assets/fonts/Baloo2-OFL.txt),
   # bundled so the app works fully offline.
@@ -29,6 +30,8 @@ flutter:
       fonts:
         - asset: assets/fonts/Baloo2-400.ttf
           weight: 400
+        - asset: assets/fonts/Baloo2-500.ttf
+          weight: 500
         - asset: assets/fonts/Baloo2-600.ttf
           weight: 600
         - asset: assets/fonts/Baloo2-700.ttf

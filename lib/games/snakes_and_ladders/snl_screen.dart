@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/localization/app_language.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/screen_bottom_bar.dart';
 import 'snl_board.dart';
 import 'snl_data.dart';
 import 'snl_translations.dart';
@@ -38,7 +42,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   int _countdownTick = 3;
   Timer? _countdownTimer;
 
-  String _diceFace = '🎲';
+  int? _diceValue; // null = not rolled yet (shows 🎲)
   Timer? _diceShuffleTimer;
 
   _MsgKind _msgKind = _MsgKind.turn;
@@ -89,7 +93,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _timeLeft = 120;
       _showCountdown = true;
       _countdownTick = 3;
-      _diceFace = '🎲';
+      _diceValue = null;
       _msgKind = _MsgKind.turn;
       _msgValue = 0;
       _showEndScreen = false;
@@ -148,7 +152,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
         final value = _rng.nextInt(6) + 1;
         if (!mounted) return;
         setState(() {
-          _diceFace = SnlData.diceFaces[value - 1];
+          _diceValue = value;
           _rolling = false;
           _msgKind = _MsgKind.rolled;
           _msgValue = value;
@@ -159,7 +163,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
         });
       } else {
         if (!mounted) return;
-        setState(() => _diceFace = SnlData.diceFaces[_rng.nextInt(6)]);
+        setState(() => _diceValue = _rng.nextInt(6) + 1);
       }
     });
   }
@@ -252,6 +256,15 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   }
 
   // ---- Build ---------------------------------------------------------------
+  //
+  // Layout follows Figma "SnL Timed Game Table" (14:1337, 360×720):
+  //   0    Header (Game Empty — back + help, no title, language toggle)  56
+  //   56   Score Section (two player chips)                             71
+  //   162  Timer "02:00" (stat/number, action/primary)                  34
+  //   208  Board 340×340 (10px side margins)
+  //        Status line + dice (not in the frame — sits in the free
+  //        space between the board and the bottom bar)
+  //   670  Bottom bar                                                   50
 
   @override
   Widget build(BuildContext context) {
@@ -259,18 +272,29 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = SnlText(lang);
-        return Scaffold(
-          backgroundColor: SnlData.screenBg,
-          body: SafeArea(
-            child: Stack(
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, SnlData.screenBg),
+            systemNavigationBarIconBrightness: Brightness.light,
+          ),
+          child: Scaffold(
+            backgroundColor: SnlData.screenBg,
+            body: Stack(
               children: [
                 Column(
                   children: [
-                    GameHeader(title: t.title, onBack: _exit, onHelp: () => _openHow(t)),
+                    SafeArea(
+                      bottom: false,
+                      child: GameHeader(title: '', onBack: _exit, onHelp: () => _openHow(t)),
+                    ),
                     _buildScores(t),
                     Expanded(
                       child: _showCountdown ? _buildCountdown(t) : _buildPlayArea(t),
                     ),
+                    const ScreenBottomBar(),
                   ],
                 ),
                 if (_showEndScreen) _buildEndScreen(t),
@@ -282,9 +306,10 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     );
   }
 
+  /// Figma "Score Section / 2 Player": 12px sides, 8px top/bottom, 12px gap.
   Widget _buildScores(SnlText t) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           Expanded(
@@ -293,18 +318,18 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
               pts: _pos['yellow']! * 2,
               ptsLabel: t.pts,
               swatch: SnlData.yellowSwatch,
-              activeBorder: SnlData.yellowActiveBorder,
+              border: SnlData.yellowActiveBorder,
               active: _turn == 'yellow',
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: _PlayerChip(
               name: t.red,
               pts: _pos['red']! * 2,
               ptsLabel: t.pts,
               swatch: SnlData.redSwatch,
-              activeBorder: SnlData.redActiveBorder,
+              border: SnlData.redActiveBorder,
               active: _turn == 'red',
             ),
           ),
@@ -331,7 +356,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
             builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
             child: Text(
               '$_countdownTick',
-              style: AppFonts.baloo(fontSize: 104, fontWeight: FontWeight.w800, color: Colors.white),
+              style: AppFonts.baloo(fontSize: 104, fontWeight: FontWeight.w800, height: 1.0, color: Colors.white),
             ),
           ),
         ],
@@ -342,49 +367,57 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   Widget _buildPlayArea(SnlText t) {
     final minutes = _timeLeft ~/ 60;
     final seconds = _timeLeft % 60;
-    final timeStr = '$minutes:${seconds.toString().padLeft(2, '0')}';
+    final timeStr = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
-    return Column(
-      children: [
-        AnimatedBuilder(
-          animation: _blinkCtrl,
-          builder: (context, child) {
-            final opacity = _urgent ? (1 - _blinkCtrl.value * 0.6) : 1.0;
-            return Opacity(
-              opacity: opacity,
-              child: Text(
-                timeStr,
-                style: AppFonts.baloo(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  color: _urgent ? const Color(0xFFF87171) : Colors.white,
-                ),
-              ),
-            );
-          },
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Center(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Timer (32 × 1.05) + 12 gap + status (18) + 10 gap + dice (64 + 5).
+        const fixed = 33.6 + 12 + 18 + 10 + 69;
+        final maxByHeight = constraints.maxHeight - fixed - 24;
+        final boardSize = (constraints.maxWidth - 20).clamp(160.0, maxByHeight < 160 ? 160.0 : maxByHeight).toDouble();
+        return Column(
+          children: [
+            const Spacer(flex: 35),
+            AnimatedBuilder(
+              animation: _blinkCtrl,
+              builder: (context, child) {
+                final opacity = _urgent ? (1 - _blinkCtrl.value * 0.6) : 1.0;
+                return Opacity(
+                  opacity: opacity,
+                  child: Text(
+                    timeStr,
+                    style: AppText.statNumber(color: _urgent ? const Color(0xFFF87171) : AppColors.actionPrimary),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox.square(
+              dimension: boardSize,
               child: SnlBoard(yellowPos: _pos['yellow']!, redPos: _pos['red']!),
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            _statusText(t),
-            textAlign: TextAlign.center,
-            style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20, top: 4),
-          child: _buildDice(),
-        ),
-      ],
+            const Spacer(flex: 12),
+            SizedBox(
+              height: 18,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _statusText(t),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: const Color(0xBFFFFFFF)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildDice(),
+            const Spacer(flex: 13),
+          ],
+        );
+      },
     );
   }
 
@@ -422,24 +455,31 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
           child: Transform.scale(scale: scale, child: child),
         );
       },
-      child: GestureDetector(
-        onTap: _gameOver ? null : _rollDice,
-        child: Opacity(
-          opacity: _gameOver ? 0.5 : 1,
-          child: Container(
-            width: 64,
-            height: 64,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: colors,
+      child: Semantics(
+        button: true,
+        label: _diceValue == null ? 'Roll dice' : 'Dice shows $_diceValue',
+        child: GestureDetector(
+          onTap: _gameOver ? null : _rollDice,
+          child: Opacity(
+            opacity: _gameOver ? 0.5 : 1,
+            child: Container(
+              width: 64,
+              height: 64,
+              margin: const EdgeInsets.only(bottom: 5),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: colors,
+                ),
+                boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(0, 5))],
               ),
-              boxShadow: [BoxShadow(color: shadowColor, offset: const Offset(0, 5))],
+              child: _diceValue == null
+                  ? const Text('🎲', style: TextStyle(fontSize: 34))
+                  : SnlDiceFace(value: _diceValue!, size: 44),
             ),
-            child: Text(_diceFace, style: const TextStyle(fontSize: 34)),
           ),
         ),
       ),
@@ -481,26 +521,9 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
                 style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
               ),
               const SizedBox(height: 28),
-              GestureDetector(
-                onTap: _startGame,
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFFFFE08A), Color(0xFFC97F00)],
-                    ),
-                    boxShadow: const [BoxShadow(color: Color(0xFF7A4B00), offset: Offset(0, 4))],
-                  ),
-                  child: Text(
-                    t.playAgain,
-                    style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w700, color: const Color(0xFF1B2340)),
-                  ),
-                ),
+              SizedBox(
+                width: 220,
+                child: ChunkyButton(label: t.playAgain, onTap: _startGame),
               ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -518,12 +541,16 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   }
 }
 
+/// Figma "Score Section" player chip: background/surface fill, 2px border
+/// in the player's colour, radius 16, 16/10 padding, 32px avatar, 12px gap.
+/// Name Bold 12/13 · score Bold 18/20 + "pts" Medium 11/12 (text/muted).
+/// The player whose turn it isn't is shown at 70% opacity.
 class _PlayerChip extends StatelessWidget {
   final String name;
   final int pts;
   final String ptsLabel;
   final Color swatch;
-  final Color activeBorder;
+  final Color border;
   final bool active;
 
   const _PlayerChip({
@@ -531,7 +558,7 @@ class _PlayerChip extends StatelessWidget {
     required this.pts,
     required this.ptsLabel,
     required this.swatch,
-    required this.activeBorder,
+    required this.border,
     required this.active,
   });
 
@@ -543,37 +570,43 @@ class _PlayerChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.14),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: active ? activeBorder : Colors.transparent, width: 2),
+          border: Border.all(color: border, width: 2),
         ),
         child: Row(
           children: [
             Container(
-              width: 26,
-              height: 26,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: swatch,
-                border: Border.all(color: Colors.white.withOpacity(0.85), width: 3),
+                border: Border.all(color: const Color(0xD9FFFFFF), width: 3),
               ),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(name, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text('$pts', style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w800)),
-                    const SizedBox(width: 4),
-                    Text(ptsLabel, style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFBABABA))),
-                  ],
-                ),
-              ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, height: 13 / 12)),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text('$pts', style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w700, height: 20 / 18)),
+                      const SizedBox(width: 4),
+                      Text(ptsLabel,
+                          style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w500, height: 12 / 11, color: AppColors.textMuted)),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

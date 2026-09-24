@@ -2,43 +2,43 @@ import 'package:flutter/material.dart';
 
 import 'snl_data.dart';
 
-/// The Snakes & Ladders board.
+/// The Snakes & Ladders board: the illustrated board image
+/// (assets/snakes_and_ladders/board.webp — same artwork as the web app's
+/// board.png) with the two gotis positioned on top.
 ///
-/// The original web app uses a hand-illustrated `board.png` with the
-/// snakes/ladders baked into the artwork. That image isn't available for
-/// this port, so the board is instead drawn procedurally from the exact
-/// same [SnlData.snakes] / [SnlData.ladders] mapping — same board, same
-/// gameplay, just vector-drawn instead of a static image. Swap in real
-/// artwork later by replacing the body of [_BoardPainter] with an `Image`.
+/// The snakes and ladders are part of the artwork; [SnlData.snakes] /
+/// [SnlData.ladders] were mapped from this exact image, so if the artwork
+/// ever changes, that mapping must be updated to match.
 class SnlBoard extends StatelessWidget {
   final int yellowPos;
   final int redPos;
 
   const SnlBoard({super.key, required this.yellowPos, required this.redPos});
 
+  static const String asset = 'assets/snakes_and_ladders/board.webp';
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 30, offset: Offset(0, 8))],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final size = constraints.biggest;
-              return Stack(
-                children: [
-                  CustomPaint(size: size, painter: _BoardPainter()),
-                  ..._buildGoti(size),
-                ],
-              );
-            },
-          ),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.biggest;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  asset,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  semanticLabel: 'Snakes and Ladders board',
+                ),
+              ),
+              ..._buildGoti(size),
+            ],
+          );
+        },
       ),
     );
   }
@@ -65,11 +65,8 @@ class SnlBoard extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 3),
-          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 3))],
-          gradient: RadialGradient(
-            center: const Alignment(-0.3, -0.4),
-            colors: colors,
-          ),
+          boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 8, offset: Offset(0, 3))],
+          gradient: RadialGradient(center: const Alignment(-0.3, -0.4), colors: colors),
         ),
       ),
     );
@@ -91,135 +88,44 @@ class SnlBoard extends StatelessWidget {
   }
 }
 
-class _BoardPainter extends CustomPainter {
+/// Dice face with black pips (value 1–6), drawn so it looks the same on
+/// every device — unlike the ⚀–⚅ text glyphs, which some fonts render in
+/// the text colour (white).
+class SnlDiceFace extends StatelessWidget {
+  final int value;
+  final double size;
+  const SnlDiceFace({super.key, required this.value, this.size = 40});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(size: Size.square(size), painter: _PipPainter(value));
+  }
+}
+
+class _PipPainter extends CustomPainter {
+  final int value;
+  const _PipPainter(this.value);
+
+  // Pip positions on a 3×3 grid (0 = left/top, 1 = centre, 2 = right/bottom).
+  static const Map<int, List<List<int>>> _layout = {
+    1: [[1, 1]],
+    2: [[0, 0], [2, 2]],
+    3: [[0, 0], [1, 1], [2, 2]],
+    4: [[0, 0], [2, 0], [0, 2], [2, 2]],
+    5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]],
+    6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]],
+  };
+
   @override
   void paint(Canvas canvas, Size size) {
-    final cell = size.width / 10;
-
-    // Base board fill.
-    final basePaint = Paint()..color = const Color(0xFF4A1526);
-    canvas.drawRect(Offset.zero & size, basePaint);
-
-    // Checkerboard squares + numbers.
-    for (int n = 1; n <= 100; n++) {
-      final frac = snlCellFraction(n);
-      final cx = frac.dx * size.width;
-      final cy = frac.dy * size.height;
-      final rect = Rect.fromCenter(center: Offset(cx, cy), width: cell, height: cell);
-      final idx = n - 1;
-      final row = idx ~/ 10;
-      final col = idx % 10;
-      final isLight = (row + col) % 2 == 0;
-      final squarePaint = Paint()
-        ..color = isLight ? const Color(0x14FFFFFF) : const Color(0x0AFFFFFF);
-      canvas.drawRect(rect.deflate(1), squarePaint);
-
-      final numStyle = TextStyle(
-        color: Colors.white.withOpacity(0.32),
-        fontSize: cell * 0.24,
-        fontWeight: FontWeight.w700,
-      );
-      final tp = TextPainter(
-        text: TextSpan(text: '$n', style: numStyle),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(cx - cell / 2 + 3, cy - cell / 2 + 2));
-    }
-
-    // Grid lines.
-    final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
-      ..strokeWidth = 1;
-    for (int i = 0; i <= 10; i++) {
-      canvas.drawLine(Offset(i * cell, 0), Offset(i * cell, size.height), gridPaint);
-      canvas.drawLine(Offset(0, i * cell), Offset(size.width, i * cell), gridPaint);
-    }
-
-    // Ladders.
-    for (final entry in SnlData.ladders.entries) {
-      _drawLadder(canvas, size, entry.key, entry.value);
-    }
-
-    // Snakes.
-    for (final entry in SnlData.snakes.entries) {
-      _drawSnake(canvas, size, entry.key, entry.value);
+    final paint = Paint()..color = const Color(0xFF111111);
+    final step = size.width / 3;
+    final r = size.width * 0.105;
+    for (final p in _layout[value.clamp(1, 6)]!) {
+      canvas.drawCircle(Offset(step * p[0] + step / 2, step * p[1] + step / 2), r, paint);
     }
   }
-
-  void _drawLadder(Canvas canvas, Size size, int bottom, int top) {
-    final p1 = _px(snlCellFraction(bottom), size);
-    final p2 = _px(snlCellFraction(top), size);
-    final dir = (p2 - p1);
-    final len = dir.distance;
-    if (len == 0) return;
-    final unit = Offset(dir.dx / len, dir.dy / len);
-    final perp = Offset(-unit.dy, unit.dx);
-    final railOffset = size.width * 0.014;
-
-    final railPaint = Paint()
-      ..color = const Color(0xFFC97F00)
-      ..strokeWidth = size.width * 0.012
-      ..strokeCap = StrokeCap.round;
-
-    final rail1a = p1 + perp * railOffset;
-    final rail1b = p2 + perp * railOffset;
-    final rail2a = p1 - perp * railOffset;
-    final rail2b = p2 - perp * railOffset;
-    canvas.drawLine(rail1a, rail1b, railPaint);
-    canvas.drawLine(rail2a, rail2b, railPaint);
-
-    final rungPaint = Paint()
-      ..color = const Color(0xFFFFE08A)
-      ..strokeWidth = size.width * 0.009
-      ..strokeCap = StrokeCap.round;
-    const rungCount = 6;
-    for (int i = 1; i < rungCount; i++) {
-      final t = i / rungCount;
-      final a = Offset.lerp(rail1a, rail1b, t)!;
-      final b = Offset.lerp(rail2a, rail2b, t)!;
-      canvas.drawLine(a, b, rungPaint);
-    }
-  }
-
-  void _drawSnake(Canvas canvas, Size size, int head, int tail) {
-    final p1 = _px(snlCellFraction(head), size); // head (high number)
-    final p2 = _px(snlCellFraction(tail), size); // tail (low number)
-    final mid = Offset.lerp(p1, p2, 0.5)!;
-    final dir = (p2 - p1);
-    final len = dir.distance;
-    if (len == 0) return;
-    final perp = Offset(-dir.dy / len, dir.dx / len);
-    final wobble = perp * (size.width * 0.06);
-    final ctrl1 = Offset.lerp(p1, mid, 1)! + wobble;
-    final ctrl2 = Offset.lerp(mid, p2, 0)! - wobble;
-
-    final path = Path()
-      ..moveTo(p1.dx, p1.dy)
-      ..cubicTo(ctrl1.dx, ctrl1.dy, ctrl2.dx, ctrl2.dy, p2.dx, p2.dy);
-
-    final bodyPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.022
-      ..strokeCap = StrokeCap.round
-      ..shader = _snakeGradient(p1, p2);
-    canvas.drawPath(path, bodyPaint);
-
-    // Head marker with simple eyes.
-    final headPaint = Paint()..color = const Color(0xFF15803D);
-    canvas.drawCircle(p1, size.width * 0.02, headPaint);
-    final eyePaint = Paint()..color = Colors.white;
-    canvas.drawCircle(p1 + const Offset(-2, -2), size.width * 0.004, eyePaint);
-    canvas.drawCircle(p1 + const Offset(2, -2), size.width * 0.004, eyePaint);
-  }
-
-  Shader _snakeGradient(Offset a, Offset b) {
-    return const LinearGradient(
-      colors: [Color(0xFF4ADE80), Color(0xFF15803D)],
-    ).createShader(Rect.fromPoints(a, b));
-  }
-
-  Offset _px(Offset frac, Size size) => Offset(frac.dx * size.width, frac.dy * size.height);
 
   @override
-  bool shouldRepaint(covariant _BoardPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _PipPainter old) => old.value != value;
 }
