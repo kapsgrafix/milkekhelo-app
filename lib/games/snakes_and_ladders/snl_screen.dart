@@ -473,12 +473,12 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
               const SizedBox(height: 12),
               Text(
                 isDraw ? t.draw : t.wins(winnerName!),
-                style: AppFonts.montserrat(fontSize: 30, fontWeight: FontWeight.w900, color: titleColor),
+                style: AppFonts.baloo(fontSize: 30, fontWeight: FontWeight.w800, color: titleColor),
               ),
               const SizedBox(height: 8),
               Text(
                 t.endSub(yp, rp),
-                style: AppFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
+                style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
               ),
               const SizedBox(height: 28),
               GestureDetector(
@@ -563,14 +563,14 @@ class _PlayerChip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(name, style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text(name, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text('$pts', style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(width: 4),
-                    Text(ptsLabel, style: AppFonts.nunito(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFFBABABA))),
+                    Text(ptsLabel, style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFBABABA))),
                   ],
                 ),
               ],
@@ -611,7 +611,7 @@ class _HowToPlaySheet extends StatelessWidget {
                 decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            Text(t.howTitle, style: AppFonts.montserrat(fontSize: 22, fontWeight: FontWeight.w900, color: SnlData.howAccent)),
+            Text(t.howTitle, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: SnlData.howAccent)),
             const SizedBox(height: 20),
             for (int i = 0; i < t.steps.length; i++) ...[
               _Step(number: i + 1, title: t.steps[i][0], desc: t.steps[i][1]),
@@ -630,7 +630,7 @@ class _HowToPlaySheet extends StatelessWidget {
                 children: [
                   Text(t.goalTitle, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text(t.goalText, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                  Text(t.goalText, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
                 ],
               ),
             ),
@@ -660,7 +660,7 @@ class _Step extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1E4FA0)]),
           ),
-          child: Text('$number', style: AppFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w900)),
+          child: Text('$number', style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w800)),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -669,7 +669,7 @@ class _Step extends StatelessWidget {
             children: [
               Text(title, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text(desc, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
+              Text(desc, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
             ],
           ),
         ),

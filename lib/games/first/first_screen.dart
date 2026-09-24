@@ -3,14 +3,18 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../core/localization/app_language.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/widgets/game_header.dart';
+import '../../core/widgets/card_deck_layout.dart';
 import 'first_data.dart';
 
 /// "First" — the icebreaker card game. A shuffled, no-repeat deck of 51
-/// prompts; swipe or use the buttons to move through them, then reshuffle
-/// for another round. Entirely self-contained: nothing outside
-/// games/first/ references it.
+/// prompts; swipe, tap the card or use the footer buttons to move through
+/// them, then reshuffle for another round.
+///
+/// Screen structure follows Figma "First Home" via the shared
+/// [CardDeckLayout]; the deck, copy and card artwork live only in this
+/// folder (games/first/).
 class FirstScreen extends StatefulWidget {
   const FirstScreen({super.key});
 
@@ -19,32 +23,46 @@ class FirstScreen extends StatefulWidget {
 }
 
 class _FirstScreenState extends State<FirstScreen> {
+  static const _pageAnim = Duration(milliseconds: 250);
+
   final _rng = Random();
+  final _controller = PageController();
   late List<FirstCard> _deck;
-  late final PageController _controller;
   int _page = 0;
 
   @override
   void initState() {
     super.initState();
     _deck = _shuffled();
-    _controller = PageController();
-  }
-
-  List<FirstCard> _shuffled() => List<FirstCard>.of(FirstData.cards)..shuffle(_rng);
-
-  void _reshuffle() {
-    setState(() {
-      _deck = _shuffled();
-      _page = 0;
-    });
-    _controller.jumpToPage(0);
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  List<FirstCard> _shuffled() => List<FirstCard>.of(FirstData.cards)..shuffle(_rng);
+
+  /// True once the player has moved past the last card (the "All done" page).
+  bool get _done => _page >= _deck.length;
+
+  void _next() {
+    if (_done) {
+      _reshuffle();
+    } else {
+      _controller.nextPage(duration: _pageAnim, curve: Curves.easeOut);
+    }
+  }
+
+  void _previous() => _controller.previousPage(duration: _pageAnim, curve: Curves.easeOut);
+
+  void _reshuffle() {
+    setState(() {
+      _deck = _shuffled();
+      _page = 0;
+    });
+    if (_controller.hasClients) _controller.jumpToPage(0);
   }
 
   @override
@@ -54,244 +72,41 @@ class _FirstScreenState extends State<FirstScreen> {
       builder: (context, lang, _) {
         final isHi = lang == AppLang.hi;
         final total = _deck.length;
-        final onLastCard = _page >= total;
-        return Scaffold(
-          backgroundColor: const Color(0xFF1B0F3D),
-          body: SafeArea(
-            child: Column(
-              children: [
-                GameHeader(
-                  title: isHi ? 'फर्स्ट' : 'First',
-                  onBack: () => Navigator.of(context).pop(),
-                  onHelp: () => _openHow(isHi),
+        return CardDeckLayout(
+          background: AppColors.screenPurple,
+          title: isHi ? 'फर्स्ट' : 'First',
+          onBack: () => Navigator.of(context).pop(),
+          onHelp: () => _openHow(isHi),
+          progressIndex: _done ? total : _page + 1,
+          progressTotal: total,
+          prompt: _done
+              ? (isHi ? 'शाबाश!' : 'All Done!')
+              : (isHi ? 'अपनी कहानी बताएं...' : 'Share the story of your...'),
+          hint: _done
+              ? (isHi ? 'सभी $total कार्ड देख लिए!' : "You've gone through all $total cards!")
+              : (isHi ? 'कार्ड दबाएं या स्वाइप करें' : 'Tap card or swipe to flip'),
+          onPrevious: _page > 0 ? _previous : null,
+          onNext: _next,
+          onRefresh: _reshuffle,
+          nextLabel: _done ? (isHi ? 'फिर खेलें' : 'Play Again') : (isHi ? 'अगला कार्ड →' : 'Next Card →'),
+          cardArea: (context, cardSize) => PageView.builder(
+            controller: _controller,
+            itemCount: total + 1, // + the "All done" page
+            onPageChanged: (p) => setState(() => _page = p),
+            itemBuilder: (context, index) {
+              final Widget face = index >= total
+                  ? _EndCard(isHi: isHi, scale: cardSize.height / CardDeckLayout.cardHeight)
+                  : _FirstCardFace(card: _deck[index], isHi: isHi, scale: cardSize.height / CardDeckLayout.cardHeight);
+              return Center(
+                child: GestureDetector(
+                  onTap: _next,
+                  child: SizedBox.fromSize(size: cardSize, child: face),
                 ),
-                if (!onLastCard) _buildProgress(total),
-                Expanded(
-                  child: PageView.builder(
-                    controller: _controller,
-                    itemCount: total + 1,
-                    onPageChanged: (p) => setState(() => _page = p),
-                    itemBuilder: (context, index) {
-                      if (index >= total) return _buildEndScreen(isHi);
-                      return _buildCardPage(_deck[index], isHi, total);
-                    },
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
-    );
-  }
-
-  Widget _buildProgress(int total) {
-    final fraction = ((_page + 1) / total).clamp(0.0, 1.0);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: LinearProgressIndicator(
-                value: fraction,
-                minHeight: 8,
-                backgroundColor: Colors.white.withOpacity(0.1),
-                valueColor: const AlwaysStoppedAnimation(Color(0xFFFFD700)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text('${_page + 1}/$total', style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFBABABA))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardPage(FirstCard card, bool isHi, int total) {
-    final cat = FirstData.categories[card.catKey]!;
-    final textColor = cat.darkText ? const Color(0xFF1A1A2E) : Colors.white;
-    return Column(
-      children: [
-        const SizedBox(height: 6),
-        Text(
-          isHi ? 'अपनी कहानी बताएं...' : 'Share the story of your...',
-          textAlign: TextAlign.center,
-          style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800, color: const Color(0xFFFFC53D)),
-        ),
-        Expanded(
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 2 / 3,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: cat.color,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 26, offset: Offset(0, 10))],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: (cat.darkText ? Colors.black : Colors.white).withOpacity(0.22), width: 2),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  isHi ? card.titleHi : card.titleEn,
-                                  textAlign: TextAlign.center,
-                                  style: AppFonts.montserrat(fontSize: 22, fontWeight: FontWeight.w900, color: textColor, letterSpacing: 0.5),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  isHi ? card.subHi : card.subEn,
-                                  textAlign: TextAlign.center,
-                                  style: AppFonts.montserrat(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor.withOpacity(0.72),
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(card.icon, style: const TextStyle(fontSize: 88)),
-                            Text(
-                              isHi ? cat.nameHi : cat.nameEn,
-                              textAlign: TextAlign.center,
-                              style: AppFonts.montserrat(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.6,
-                                color: textColor.withOpacity(0.78),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Text(
-          isHi ? 'कार्ड दबाएं या स्वाइप करें' : 'Tap card or swipe to flip',
-          style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFBABABA), letterSpacing: 0.4),
-        ),
-        const SizedBox(height: 12),
-        _buildActionBar(isHi, total),
-      ],
-    );
-  }
-
-  Widget _buildActionBar(bool isHi, int total) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: Row(
-        children: [
-          _roundBtn('←', _page > 0 ? () => _controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut) : null),
-          const SizedBox(width: 10),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _controller.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-              child: Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(colors: [Color(0xFFFFE08A), Color(0xFFC97F00)]),
-                  boxShadow: const [BoxShadow(color: Color(0xFF7A4B00), offset: Offset(0, 4))],
-                ),
-                child: Text(
-                  isHi ? 'अगला कार्ड →' : 'Next Card →',
-                  style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF1B2340)),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          _roundBtn('↻', _reshuffle),
-        ],
-      ),
-    );
-  }
-
-  Widget _roundBtn(String label, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: onTap == null ? 0.4 : 1,
-        child: Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(colors: [Color(0xFF5B8CFF), Color(0xFF16307A)]),
-            boxShadow: const [BoxShadow(color: Color(0xFF0C1A42), offset: Offset(0, 4))],
-          ),
-          child: Text(label, style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w700)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEndScreen(bool isHi) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🎉', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            Text(isHi ? 'शाबाश!' : 'All Done!', style: AppFonts.baloo(fontSize: 28, fontWeight: FontWeight.w800, color: const Color(0xFFFFD700))),
-            const SizedBox(height: 10),
-            Text(
-              isHi ? 'सभी 51 कार्ड देख लिए!\nएक और राउंड खेलें?' : "You've gone through all 51 cards!\nReady for another round?",
-              textAlign: TextAlign.center,
-              style: AppFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
-            ),
-            const SizedBox(height: 28),
-            GestureDetector(
-              onTap: _reshuffle,
-              child: Container(
-                height: 48,
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(colors: [Color(0xFFFFE08A), Color(0xFFC97F00)]),
-                  boxShadow: const [BoxShadow(color: Color(0xFF7A4B00), offset: Offset(0, 4))],
-                ),
-                child: Text(
-                  isHi ? '🔀 फिर खेलें' : '🔀 Play Again',
-                  style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w700, color: const Color(0xFF1B2340)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Text(
-                isHi ? '🏠 होम पर जाएं' : '🏠 Back to Home',
-                style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -374,7 +189,7 @@ class _HowSheet extends StatelessWidget {
                 decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            Text(title, style: AppFonts.montserrat(fontSize: 22, fontWeight: FontWeight.w900, color: badgeColors.first)),
+            Text(title, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: badgeColors.first)),
             const SizedBox(height: 20),
             for (int i = 0; i < steps.length; i++) ...[
               Row(
@@ -385,7 +200,7 @@ class _HowSheet extends StatelessWidget {
                     height: 26,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: badgeColors)),
-                    child: Text('${i + 1}', style: AppFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w900, color: badgeTextColor)),
+                    child: Text('${i + 1}', style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w800, color: badgeTextColor)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -394,10 +209,10 @@ class _HowSheet extends StatelessWidget {
                       children: [
                         Text(steps[i][0]!, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
-                        Text(steps[i][1]!, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
+                        Text(steps[i][1]!, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
                         if (steps[i].length > 2 && steps[i][2] != null) ...[
                           const SizedBox(height: 4),
-                          Text(steps[i][2]!, style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white38).copyWith(fontStyle: FontStyle.italic)),
+                          Text(steps[i][2]!, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white38).copyWith(fontStyle: FontStyle.italic)),
                         ],
                       ],
                     ),
@@ -419,12 +234,107 @@ class _HowSheet extends StatelessWidget {
                 children: [
                   Text(goalTitle, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text(goalText, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                  Text(goalText, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One First card, drawn to fit the Figma card slot (240×320, radius 24).
+/// [scale] = actual card height / 320, so the artwork shrinks proportionally
+/// on very short screens.
+class _FirstCardFace extends StatelessWidget {
+  final FirstCard card;
+  final bool isHi;
+  final double scale;
+  const _FirstCardFace({required this.card, required this.isHi, required this.scale});
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = FirstData.categories[card.catKey]!;
+    final textColor = cat.darkText ? const Color(0xFF1A1A2E) : Colors.white;
+    final s = scale;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cat.color,
+        borderRadius: BorderRadius.circular(24 * s),
+        boxShadow: const [BoxShadow(color: Color(0x73000000), blurRadius: 26, offset: Offset(0, 10))],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(8 * s),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: (cat.darkText ? Colors.black : Colors.white).withAlpha(56), width: 2),
+            borderRadius: BorderRadius.circular(16 * s),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14 * s, vertical: 18 * s),
+            child: Column(
+              children: [
+                Text(
+                  isHi ? card.titleHi : card.titleEn,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 20 * s, fontWeight: FontWeight.w800, height: 1.15, letterSpacing: 0.4, color: textColor),
+                ),
+                SizedBox(height: 6 * s),
+                Text(
+                  isHi ? card.subHi : card.subEn,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 12 * s, fontWeight: FontWeight.w700, height: 1.25, letterSpacing: 1.0, color: textColor.withAlpha(184)),
+                ),
+                Expanded(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(card.icon, style: TextStyle(fontSize: 72 * s)),
+                    ),
+                  ),
+                ),
+                Text(
+                  isHi ? cat.nameHi : cat.nameEn,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 12 * s, fontWeight: FontWeight.w700, height: 1.25, letterSpacing: 1.2, color: textColor.withAlpha(199)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The last page of the deck, shown in the card slot after card 51.
+class _EndCard extends StatelessWidget {
+  final bool isHi;
+  final double scale;
+  const _EndCard({required this.isHi, required this.scale});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(24 * scale),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24 * scale),
+        border: Border.all(color: AppColors.borderDefault),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('🎉', style: TextStyle(fontSize: 64 * scale)),
+          SizedBox(height: 12 * scale),
+          Text(
+            isHi ? 'एक और राउंड खेलें?' : 'Ready for another round?',
+            textAlign: TextAlign.center,
+            style: AppText.labelCard(),
+          ),
+        ],
       ),
     );
   }

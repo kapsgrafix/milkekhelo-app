@@ -413,7 +413,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
           _statCard(children: [
             Text('$_streak', style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(width: 8),
-            Text(t.streak, style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white60)),
+            Text(t.streak, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white60)),
           ]),
           _statCard(children: [
             for (int i = 0; i < MgData.maxLives; i++)
@@ -451,7 +451,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         ),
         child: Column(
           children: [
-            Text(name, style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(name, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700)),
             Text('$value', style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w800)),
           ],
         ),
@@ -486,7 +486,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
           const SizedBox(height: 4),
           Text(
             t.mode(widget.level!),
-            style: AppFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white38, letterSpacing: 1.5),
+            style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white38, letterSpacing: 1.5),
           ),
         ],
         const SizedBox(height: 10),
@@ -675,7 +675,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                   _isDuel
                       ? (_duelScores[0] == _duelScores[1] ? t.tieSub : t.winSub)
                       : (_streak == 0 ? t.betterLuck : t.reachedStreak(_streak)),
-                  style: AppFonts.nunito(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFFBABABA)),
+                  style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFFBABABA)),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
@@ -686,7 +686,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                       _finalScoreBox(t.p1, _duelScores[0], _duelScores[0] >= _duelScores[1] && _duelScores[0] != _duelScores[1]),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Text('vs', style: AppFonts.nunito(fontSize: 14, color: Colors.white38)),
+                        child: Text('vs', style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white38)),
                       ),
                       _finalScoreBox(t.p2, _duelScores[1], _duelScores[1] > _duelScores[0]),
                     ],
@@ -698,10 +698,10 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                     child: Column(
                       children: [
                         Text('$_streak', style: AppFonts.baloo(fontSize: 54, fontWeight: FontWeight.w800, color: MgData.gold)),
-                        Text(t.finalStreak.toUpperCase(), style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1, color: Colors.white70)),
+                        Text(t.finalStreak.toUpperCase(), style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1, color: Colors.white70)),
                         if (_best > 0) ...[
                           const SizedBox(height: 6),
-                          Text(t.bestStreak(_best), style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white54)),
+                          Text(t.bestStreak(_best), style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white54)),
                         ],
                       ],
                     ),
@@ -749,7 +749,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       ),
       child: Column(
         children: [
-          Text(name, style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70)),
+          Text(name, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70)),
           const SizedBox(height: 4),
           Text('$value', style: AppFonts.baloo(fontSize: 26, fontWeight: FontWeight.w800)),
         ],

@@ -4,7 +4,10 @@ import 'package:flutter/services.dart';
 import '../core/localization/app_language.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/widgets/game_header.dart';
+import '../core/widgets/language_toggle.dart';
 import '../core/widgets/pressable_card.dart';
+import '../core/widgets/screen_bottom_bar.dart';
 import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
 import '../games/snakes_and_ladders/snl_screen.dart';
@@ -45,9 +48,9 @@ class HomeScreen extends StatelessWidget {
             final isHi = lang == AppLang.hi;
             return Column(
               children: [
-                SafeArea(bottom: false, child: _HomeHeader(isHi: isHi)),
+                const SafeArea(bottom: false, child: _HomeHeader()),
                 Expanded(child: _HomeBody(isHi: isHi)),
-                const _BottomBar(),
+                const ScreenBottomBar(),
               ],
             );
           },
@@ -94,8 +97,7 @@ class _HomeBody extends StatelessWidget {
 /// Figma "Header / Type=Home": 12px padding, 72px left slot with the menu
 /// button, flexible centre, 72px language toggle on the right.
 class _HomeHeader extends StatelessWidget {
-  final bool isHi;
-  const _HomeHeader({required this.isHi});
+  const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -113,15 +115,15 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
           const Expanded(child: SizedBox(height: 32)),
-          _LanguageToggle(isHi: isHi),
+          const LanguageToggle(),
         ],
       ),
     );
   }
 }
 
-/// Figma "Icon/Menu": 32×32, surface fill, 1px default border, radius 12,
-/// 16px hamburger glyph (3 bars) in text/primary.
+/// Figma "Icon/Menu": the shared 32×32 header button with a 16px
+/// three-bar hamburger glyph in text/primary.
 class _MenuButton extends StatelessWidget {
   final VoidCallback onTap;
   const _MenuButton({required this.onTap});
@@ -136,83 +138,12 @@ class _MenuButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(1.5),
           ),
         );
-    return Semantics(
-      button: true,
-      label: 'Menu',
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderDefault),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [bar(), const SizedBox(height: 3), bar(), const SizedBox(height: 3), bar()],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Figma "Language Toggle": 72×32, 4px inset, surface fill, default border,
-/// radius 12. Active segment: brand/yellow, radius 8, text/on-light.
-/// Inactive segment: transparent, text/muted. Labels Baloo 2 Bold 15.
-class _LanguageToggle extends StatelessWidget {
-  final bool isHi;
-  const _LanguageToggle({required this.isHi});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 32,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderDefault),
-      ),
-      child: Row(
-        children: [
-          _segment('EN', !isHi, () => AppLanguage.instance.set(AppLang.en)),
-          _segment('हिं', isHi, () => AppLanguage.instance.set(AppLang.hi)),
-        ],
-      ),
-    );
-  }
-
-  Widget _segment(String label, bool active, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: active ? AppColors.brandYellow : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.visible,
-            style: AppFonts.baloo(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              height: 1.0,
-              color: active ? AppColors.textOnLight : AppColors.textMuted,
-            ),
-          ),
-        ),
+    return HeaderIconButton(
+      semanticLabel: 'Menu',
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [bar(), const SizedBox(height: 3), bar(), const SizedBox(height: 3), bar()],
       ),
     );
   }
@@ -245,7 +176,7 @@ class _LogoLockup extends StatelessWidget {
           Text(
             'Play Offline. Connect for Real.',
             textAlign: TextAlign.center,
-            style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: AppText.tagline(),
           ),
         ],
       ),
@@ -399,12 +330,7 @@ class _GameModuleCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     softWrap: false,
-                    style: AppFonts.baloo(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      height: 1.25,
-                      color: AppColors.textPrimary,
-                    ),
+                    style: AppText.labelCard(),
                   ),
                 ),
               ],
@@ -412,24 +338,6 @@ class _GameModuleCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────── Bottom bar ─────────────────────────
-
-/// Figma: 50px full-width strip in background/surface at the bottom of the
-/// frame. Extends under the Android gesture/nav area.
-class _BottomBar extends StatelessWidget {
-  const _BottomBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final inset = MediaQuery.of(context).padding.bottom;
-    return Container(
-      width: double.infinity,
-      height: 50 + inset,
-      color: AppColors.surface,
     );
   }
 }

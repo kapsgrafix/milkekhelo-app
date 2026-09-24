@@ -53,7 +53,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           t.tagline,
-                          style: AppFonts.nunito(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white38),
+                          style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white38),
                         ),
                         const SizedBox(height: 26),
                         _SectionDivider(label: t.soloHeading),
@@ -195,7 +195,7 @@ class _LevelCard extends StatelessWidget {
               const SizedBox(height: 10),
               Container(height: 1, color: Colors.white.withOpacity(0.2)),
               const SizedBox(height: 8),
-              Text(desc, style: AppFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black.withOpacity(0.65))),
+              Text(desc, style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black.withOpacity(0.65))),
             ],
           ),
         ),
@@ -270,7 +270,7 @@ class _DuelCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       t.duelSub,
-                      style: AppFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.85)),
+                      style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.85)),
                     ),
                   ],
                 ),
@@ -323,7 +323,7 @@ class MgHowToPlaySheet extends StatelessWidget {
                 decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            Text(t.howTitle, style: AppFonts.montserrat(fontSize: 22, fontWeight: FontWeight.w900, color: MgData.gold)),
+            Text(t.howTitle, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: MgData.gold)),
             const SizedBox(height: 20),
             for (int i = 0; i < steps.length; i++) ...[
               _MgStep(number: i + 1, title: steps[i][0], desc: steps[i][1]),
@@ -342,7 +342,7 @@ class MgHowToPlaySheet extends StatelessWidget {
                 children: [
                   Text(t.goalTitle, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text(t.goalText, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                  Text(t.goalText, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
                 ],
               ),
             ),
@@ -372,7 +372,7 @@ class _MgStep extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: LinearGradient(colors: [MgData.accent2, MgData.accent]),
           ),
-          child: Text('$number', style: AppFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+          child: Text('$number', style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E))),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -381,7 +381,7 @@ class _MgStep extends StatelessWidget {
             children: [
               Text(title, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text(desc, style: AppFonts.nunito(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
+              Text(desc, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white60)),
             ],
           ),
         ),

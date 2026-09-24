@@ -25,6 +25,17 @@ class AppColors {
   /// Android system navigation bar so it blends with the home bottom bar.
   static const Color surfaceOnScreen = Color(0xFF313A58);
 
+  /// Per-game screen backgrounds (Figma background/screen-*).
+  static const Color screenPurple = Color(0xFF1B0F3D); // First
+  static const Color screenCoral = Color(0xFF3D1C0F); // Thank You
+
+  /// Figma action/* tokens for the chunky CTA buttons.
+  static const Color actionPrimary = Color(0xFFFFC53D); // action/primary (also prompt text)
+  static const List<Color> primaryGradient = [Color(0xFFFFE08A), Color(0xFFC97F00)];
+  static const Color primaryShadow = Color(0xFF7A4B00); // action/primary-shadow
+  static const List<Color> secondaryGradient = [Color(0xFF5B8CFF), Color(0xFF16307A)];
+  static const Color secondaryShadow = Color(0xFF0C1A42); // action/secondary-shadow
+
   /// Shared header icon-button background + border (the 32x32 back/help
   /// buttons used by every game screen).
   static const Color headerIconBg = Color(0x24FFFFFF); // rgba(255,255,255,.14)
@@ -35,7 +46,7 @@ class AppColors {
   static const Color langToggleBorder = Color(0x47FFFFFF);
   static const Color langActiveBg = Color(0xFFFFC53D);
   static const Color langActiveText = Color(0xFF1B2340);
-  static const Color langInactiveText = Color(0xFFA9B4D6);
+  static const Color langInactiveText = Color(0xFFBABABA); // text/muted
 
   /// Shared primary CTA button gradient ("Play Again" / "Start" everywhere).
   static const List<Color> ctaGradient = [Color(0xFFFFE08A), Color(0xFFC97F00)];

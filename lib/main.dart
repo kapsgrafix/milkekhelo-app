@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/theme/app_colors.dart';
+import 'core/theme/app_text_styles.dart';
 import 'home/home_screen.dart';
 
 void main() {
@@ -27,6 +28,8 @@ class MilKeKheloApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        // Baloo 2 everywhere (bundled in assets/fonts/).
+        fontFamily: AppFonts.family,
         scaffoldBackgroundColor: AppColors.shell,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.langActiveBg,
