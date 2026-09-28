@@ -19,7 +19,7 @@ class MgText {
   String get titleB => _hi ? 'जाल' : 'Grid';
   String get play => _hi ? 'खेलें →' : 'Play →';
   String get tagline => _hi ? 'याद करो · दबाओ · दोहराओ' : 'Memorise, Tap, and Win!';
-  String get soloHeading => _hi ? 'सोलो — अपना सर्वश्रेष्ठ करो' : 'Solo — Beat Your Best';
+  String get soloHeading => _hi ? 'सोलो - अपना सर्वश्रेष्ठ करो' : 'Solo - Beat Your Best';
   String get duelHeading => _hi ? 'साथ खेलें' : 'Play Together';
   String get easy => _hi ? 'आसान' : 'Easy';
   String get medium => _hi ? 'मध्यम' : 'Medium';

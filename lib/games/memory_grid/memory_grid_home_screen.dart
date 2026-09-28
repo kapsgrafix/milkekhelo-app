@@ -5,6 +5,7 @@ import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/heartbeat.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'memory_grid_game_screen.dart';
@@ -15,10 +16,11 @@ import 'mg_translations.dart';
 ///   0    Header (Game Empty)                                     56
 ///   0    Glow panel (280 tall, 40px bottom radius) behind the top
 ///   76   Hero art (name baked in, EN/HI)                         180
-///   304  Section Divider "Solo — Beat Your Best"                 20
-///   336  3 × Difficulty Card (104 wide, 12 gap)                 150 + 5 ledge
-///   520  Section Divider "Play Together"                         20
-///   552  Choice Card "2 Players Offline"                          88 + 5 ledge
+///   308  Section title "Solo - Beat Your Best" (SemiBold 16, left) · 12 ·
+///        3 × Difficulty Card (104 wide, 12 gap)                 150 + 5 ledge
+///        · 24 · Section title "Play Together" · 12 ·
+///        Choice Card "2 Players Offline"                          88 + 5 ledge
+///   All cards pulse gently (shared [Heartbeat]), staggered left → right.
 ///   670  Bottom bar                                              50
 class MemoryGridHomeScreen extends StatelessWidget {
   const MemoryGridHomeScreen({super.key});
@@ -79,21 +81,25 @@ class MemoryGridHomeScreen extends StatelessWidget {
                       children: [
                         // Hero art (game name is part of the picture): 180×180.
                         Image.asset(
-                          'assets/home/card_memory_grid_${lang == AppLang.hi ? 'hi' : 'en'}.webp',
+                          // EN: dedicated 360px hero art (sharp at 2×);
+                          // HI: the Hindi home-card art until a 360px version exists.
+                          lang == AppLang.hi ? 'assets/home/card_memory_grid_hi.webp' : 'assets/memory_grid/hero_en.webp',
                           width: 180,
                           height: 180,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
                           semanticLabel: t.titleA + t.titleB,
                         ),
-                        const SizedBox(height: 46), // divider grew to 24 → keeps Figma y
-                        _SectionDivider(label: t.soloHeading),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 52),
+                        _SectionTitle(label: t.soloHeading),
+                        const SizedBox(height: 12),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: _DifficultyCard(
+                              child: Heartbeat(
+                                delay: const Duration(milliseconds: 0),
+                                child: _DifficultyCard(
                                 image: 'assets/memory_grid/diff_easy.webp',
                                 name: t.easy,
                                 blocks: t.easyDesc(MgData.levels['easy']!.dots),
@@ -101,10 +107,13 @@ class MemoryGridHomeScreen extends StatelessWidget {
                                 palette: MgData.easyCard,
                                 onTap: () => _start(context, level: 'easy'),
                               ),
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _DifficultyCard(
+                              child: Heartbeat(
+                                delay: const Duration(milliseconds: 220),
+                                child: _DifficultyCard(
                                 image: 'assets/memory_grid/diff_medium.webp',
                                 name: t.medium,
                                 blocks: t.easyDesc(MgData.levels['medium']!.dots),
@@ -112,10 +121,13 @@ class MemoryGridHomeScreen extends StatelessWidget {
                                 palette: MgData.mediumCard,
                                 onTap: () => _start(context, level: 'medium'),
                               ),
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _DifficultyCard(
+                              child: Heartbeat(
+                                delay: const Duration(milliseconds: 440),
+                                child: _DifficultyCard(
                                 image: 'assets/memory_grid/diff_hard.webp',
                                 name: t.hard,
                                 blocks: t.easyDesc(MgData.levels['hard']!.dots),
@@ -123,13 +135,17 @@ class MemoryGridHomeScreen extends StatelessWidget {
                                 palette: MgData.hardCard,
                                 onTap: () => _start(context, level: 'hard'),
                               ),
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 27), // 34 − 5px ledge − 2 (taller divider)
-                        _SectionDivider(label: t.duelHeading),
-                        const SizedBox(height: 10),
-                        _ChoiceCard(t: t, onTap: () => _start(context, level: null)),
+                        const SizedBox(height: 19), // Figma 24 gap − 5px ledge
+                        _SectionTitle(label: t.duelHeading),
+                        const SizedBox(height: 12),
+                        Heartbeat(
+                          delay: const Duration(milliseconds: 660),
+                          child: _ChoiceCard(t: t, onTap: () => _start(context, level: null)),
+                        ),
                       ],
                     ),
                   ),
@@ -161,56 +177,19 @@ class MemoryGridHomeScreen extends StatelessWidget {
   }
 }
 
-/// Figma "Section Divider": 6px dot · dashed line · label (Bold 15 — bumped
-/// from Figma's 13 on request) ·
-/// dashed line · 6px dot, 10px gaps.
-class _SectionDivider extends StatelessWidget {
+/// Figma "Section Divider" (latest L1): a left-aligned section title,
+/// SemiBold 16, text/primary — no dots or lines.
+class _SectionTitle extends StatelessWidget {
   final String label;
-  const _SectionDivider({required this.label});
+  const _SectionTitle({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    Widget dot() => Container(
-          width: 6,
-          height: 6,
-          decoration: const BoxDecoration(color: MgData.titleAccent, shape: BoxShape.circle),
-        );
-    return SizedBox(
-      height: 24,
-      child: Row(
-        children: [
-          dot(),
-          const SizedBox(width: 10),
-          const Expanded(child: CustomPaint(size: Size(double.infinity, 1.5), painter: _DashPainter())),
-          const SizedBox(width: 10),
-          Text(label, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
-          const SizedBox(width: 10),
-          const Expanded(child: CustomPaint(size: Size(double.infinity, 1.5), painter: _DashPainter())),
-          const SizedBox(width: 10),
-          dot(),
-        ],
-      ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(label, style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w600)),
     );
   }
-}
-
-class _DashPainter extends CustomPainter {
-  const _DashPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = MgData.titleAccent.withAlpha(140)
-      ..strokeWidth = 1.5;
-    const dash = 4.0, gap = 4.0;
-    final y = size.height / 2;
-    for (double x = 0; x < size.width; x += dash + gap) {
-      canvas.drawLine(Offset(x, y), Offset((x + dash).clamp(0, size.width).toDouble(), y), p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Figma "Difficulty Card": gradient face, radius 16, 5px ledge.
