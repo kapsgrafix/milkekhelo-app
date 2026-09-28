@@ -13,16 +13,15 @@ import 'mg_translations.dart';
 
 /// Memory Grid landing page — Figma "Memory Grid L1" (14:1392, 360×720):
 ///   0    Header (Game Empty)                                     56
-///   76   Hero: 120px icon · "Memory Grid" (h1) · tagline        182
-///   282  Section Divider "Solo — Beat Your Best"                 20
-///   314  3 × Difficulty Card (104 wide, 12 gap)                 150 + 5 ledge
-///   498  Section Divider "Play Together"                         20
-///   530  Choice Card "2 Players Offline"                          89 + 5 ledge
+///   0    Glow panel (280 tall, 40px bottom radius) behind the top
+///   76   Hero art (name baked in, EN/HI)                         180
+///   304  Section Divider "Solo — Beat Your Best"                 20
+///   336  3 × Difficulty Card (104 wide, 12 gap)                 150 + 5 ledge
+///   520  Section Divider "Play Together"                         20
+///   552  Choice Card "2 Players Offline"                          88 + 5 ledge
 ///   670  Bottom bar                                              50
 class MemoryGridHomeScreen extends StatelessWidget {
   const MemoryGridHomeScreen({super.key});
-
-  static const _heroIcon = 'assets/home/memory_grid.webp';
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +39,30 @@ class MemoryGridHomeScreen extends StatelessWidget {
           ),
           child: Scaffold(
             backgroundColor: MgData.screenBg,
-            body: Column(
+            body: Stack(
+              children: [
+                // Figma: 280px top panel with a soft green glow toward the
+                // bottom-right and 40px rounded bottom corners, sitting
+                // behind the header and hero art.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: MediaQuery.of(context).padding.top + 280,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
+                      gradient: LinearGradient(
+                        // CSS linear-gradient(155.15deg, transparent 46.5%, rgba(40,251,42,.2) 100%)
+                        begin: Alignment(-0.473, -1.313),
+                        end: Alignment(0.473, 1.313),
+                        colors: [Color(0x0028FB2A), Color(0x0028FB2A), Color(0x3328FB2A)],
+                        stops: [0, 0.465, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
               children: [
                 SafeArea(
                   bottom: false,
@@ -55,8 +77,16 @@ class MemoryGridHomeScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(12, 20, 12, 24),
                     child: Column(
                       children: [
-                        _Hero(t: t, icon: _heroIcon),
-                        const SizedBox(height: 24),
+                        // Hero art (game name is part of the picture): 180×180.
+                        Image.asset(
+                          'assets/home/card_memory_grid_${lang == AppLang.hi ? 'hi' : 'en'}.webp',
+                          width: 180,
+                          height: 180,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          semanticLabel: t.titleA + t.titleB,
+                        ),
+                        const SizedBox(height: 48),
                         _SectionDivider(label: t.soloHeading),
                         const SizedBox(height: 12),
                         Row(
@@ -64,7 +94,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: _DifficultyCard(
-                                image: 'assets/memory_grid/solo_easy.webp',
+                                image: 'assets/memory_grid/diff_easy.webp',
                                 name: t.easy,
                                 blocks: t.easyDesc(MgData.levels['easy']!.dots),
                                 play: t.play,
@@ -75,7 +105,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _DifficultyCard(
-                                image: 'assets/memory_grid/solo_medium.webp',
+                                image: 'assets/memory_grid/diff_medium.webp',
                                 name: t.medium,
                                 blocks: t.easyDesc(MgData.levels['medium']!.dots),
                                 play: t.play,
@@ -107,6 +137,8 @@ class MemoryGridHomeScreen extends StatelessWidget {
                 const ScreenBottomBar(),
               ],
             ),
+              ],
+            ),
           ),
         );
       },
@@ -125,38 +157,6 @@ class MemoryGridHomeScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => MgHowToPlaySheet(t: t, isDuel: isDuel),
-    );
-  }
-}
-
-/// 120px game icon, "Memory Grid" (heading/h1: ExtraBold 28 / 115%, second
-/// word in #6EE0AC) and the tagline (body/small: Medium 13 / 135%, muted).
-class _Hero extends StatelessWidget {
-  final MgText t;
-  final String icon;
-  const _Hero({required this.t, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final h1 = AppFonts.baloo(fontSize: 28, fontWeight: FontWeight.w800, height: 1.15);
-    return Column(
-      children: [
-        Image.asset(icon, width: 120, height: 120, fit: BoxFit.contain, filterQuality: FilterQuality.high),
-        const SizedBox(height: 8),
-        Text.rich(
-          TextSpan(children: [
-            TextSpan(text: t.titleA, style: h1),
-            TextSpan(text: t.titleB, style: h1.copyWith(color: MgData.titleAccent)),
-          ]),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          t.tagline,
-          textAlign: TextAlign.center,
-          style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w500, height: 1.35, color: AppColors.textMuted),
-        ),
-      ],
     );
   }
 }
@@ -213,10 +213,9 @@ class _DashPainter extends CustomPainter {
 }
 
 /// Figma "Difficulty Card": gradient face, radius 16, 5px ledge.
-/// Body (12 top / 8 sides / 10 bottom, 10 gap): 74×51 art (radius 6),
-/// name ExtraBold 15 / 110% white, blocks Medium 11 on-light.
-/// 1px 18%-black divider, then a 32px footer in the bottom colour with
-/// "Play →" Bold 13 on-light.
+/// Body (8px padding): 84×84 art (difficulty name is part of the art),
+/// "n blocks" Medium 11 on-light. 1px 18%-black divider, then a 32px footer
+/// in the bottom colour with "Play →" Bold 13 white.
 class _DifficultyCard extends StatelessWidget {
   final String image;
   final String name;
@@ -234,7 +233,7 @@ class _DifficultyCard extends StatelessWidget {
     required this.onTap,
   });
 
-  static const double faceHeight = 150.23;
+  static const double faceHeight = 8 + 84 + 17 + 8 + 1 + 32; // 150
   static const double ledge = 5;
 
   @override
@@ -259,18 +258,11 @@ class _DifficultyCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.asset(image, width: 74, height: 51.23, fit: BoxFit.cover, filterQuality: FilterQuality.high),
-                        ),
-                        const SizedBox(height: 10),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(name, maxLines: 1, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800, height: 1.1)),
-                        ),
+                        Image.asset(image, width: 84, height: 84, fit: BoxFit.contain, filterQuality: FilterQuality.high),
                         Text(
                           blocks,
                           maxLines: 1,
@@ -286,7 +278,7 @@ class _DifficultyCard extends StatelessWidget {
                   width: double.infinity,
                   color: palette.bottom,
                   alignment: Alignment.center,
-                  child: Text(play, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textOnLight)),
+                  child: Text(play, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                 ),
               ],
             ),
@@ -305,7 +297,7 @@ class _ChoiceCard extends StatelessWidget {
   final VoidCallback onTap;
   const _ChoiceCard({required this.t, required this.onTap});
 
-  static const double faceHeight = 89;
+  static const double faceHeight = 12 + 64 + 12; // 88
   static const double ledge = 5;
 
   @override
@@ -325,19 +317,33 @@ class _ChoiceCard extends StatelessWidget {
           pressedOverlayColor: const Color(0x2E000000),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Image.asset('assets/memory_grid/two_players.webp',
-                    width: 56, height: 56, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+                    width: 64, height: 64, fit: BoxFit.contain, filterQuality: FilterQuality.high),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.duelName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800)),
+                      // Figma: white title with a thin dark-purple outline
+                      // (outline layer underneath, white fill on top).
+                      Stack(
+                        children: [
+                          Text(t.duelName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800).copyWith(
+                                foreground: Paint()
+                                  ..style = PaintingStyle.stroke
+                                  ..strokeWidth = 2.5
+                                  ..strokeJoin = StrokeJoin.round
+                                  ..color = MgData.duelCard.shadow,
+                              )),
+                          Text(t.duelName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800)),
+                        ],
+                      ),
                       const SizedBox(height: 2),
                       Text(t.duelSub, maxLines: 2, overflow: TextOverflow.ellipsis,
                           style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w500, height: 1.28)),
