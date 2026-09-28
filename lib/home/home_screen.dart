@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,19 +18,21 @@ import '../games/thank_you/thank_you_screen.dart';
 import 'settings_sheet.dart';
 
 /// The launcher / home screen — built to the Figma frame "Home - L0"
-/// (MilkeKhelo-Design, node 6:159, 360×720).
+/// "Home - L0 Final EN" (MilkeKhelo-Design, node 236:968, 360×720).
 ///
 /// Figma layout (y from frame top):
 ///   0   Header (12px padding, 32px controls)          → 56 tall
 ///   156 Logo lockup (wordmark / heart divider / tagline) → 74 tall
-///   308 2×2 Game Module Cards (152×148, gap 16×22, 6px ledge)
+///   308 2×2 game cards (152×148 / 152×152, gap 16×22, 6px ledge)
 ///   670 Bottom bar (50px, background/surface)
 ///
-/// The vertical gaps (100 / 78 / 38) are flex spacers so the layout is
+/// The vertical gaps (100 / 78 / 34) are flex spacers so the layout is
 /// pixel-exact on a 720pt-tall screen and scales proportionally on taller
 /// or shorter phones. If a screen is too short, the content scrolls.
 ///
 /// This screen holds no game logic — each card just pushes that game's route.
+const Color _homeBgEdge = Color(0xFF000E3A);
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -38,23 +43,35 @@ class HomeScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: AppColors.surfaceOnScreen,
+        systemNavigationBarColor: Color(0xFF232B52), // surface over the gradient's edge
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: AppColors.screenBackground,
-        body: ValueListenableBuilder<AppLang>(
-          valueListenable: AppLanguage.instance,
-          builder: (context, lang, _) {
-            final isHi = lang == AppLang.hi;
-            return Column(
-              children: [
-                const SafeArea(bottom: false, child: _HomeHeader()),
-                Expanded(child: _HomeBody(isHi: isHi)),
-                const ScreenBottomBar(),
-              ],
-            );
-          },
+        backgroundColor: _homeBgEdge,
+        body: DecoratedBox(
+          // Figma "Home - L0 Final": radial blue glow centred at (180, 451.5)
+          // of the 360×720 frame, radius ≈ 273, fading to deep navy.
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, 451.5 / 360 - 1),
+              radius: 273 / 360, // fraction of the screen width
+              colors: [Color(0xFF0026A0), Color(0xFF001A6D), Color(0xFF001453), _homeBgEdge],
+              stops: [0, 0.5, 0.75, 1],
+            ),
+          ),
+          child: ValueListenableBuilder<AppLang>(
+            valueListenable: AppLanguage.instance,
+            builder: (context, lang, _) {
+              final isHi = lang == AppLang.hi;
+              return Column(
+                children: [
+                  const SafeArea(bottom: false, child: _HomeHeader()),
+                  Expanded(child: _HomeBody(isHi: isHi)),
+                  const ScreenBottomBar(),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -79,10 +96,10 @@ class _HomeBody extends StatelessWidget {
               child: Column(
                 children: [
                   const Spacer(flex: 100),
-                  const _LogoLockup(),
+                  _LogoLockup(isHi: isHi),
                   const Spacer(flex: 78),
                   _GameGrid(isHi: isHi),
-                  const Spacer(flex: 38),
+                  const Spacer(flex: 34),
                 ],
               ),
             ),
@@ -152,7 +169,8 @@ class _MenuButton extends StatelessWidget {
 
 /// Figma "Logo with Tagline" (Background=Dark): 240 wide, 6px gaps.
 class _LogoLockup extends StatelessWidget {
-  const _LogoLockup();
+  final bool isHi;
+  const _LogoLockup({required this.isHi});
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +191,7 @@ class _LogoLockup extends StatelessWidget {
           const CustomPaint(size: Size(146, 10), painter: _HeartDividerPainter()),
           const SizedBox(height: 6),
           Text(
-            'Play Offline. Connect for Real.',
+            isHi ? 'कम स्क्रॉल, ज़्यादा कहानियाँ' : 'Less Scrolling. More Stories.',
             textAlign: TextAlign.center,
             style: AppText.tagline(),
           ),
@@ -224,33 +242,62 @@ class _GameGrid extends StatelessWidget {
   // the 6px shadow ledge, so the visible gap between cells is 22 - 6.
   static const double _rowGap = 22 - _GameModuleCard.ledge;
 
+  static bool _precached = false;
+
+  /// Decode both language sets once, so switching EN ⇄ हिं swaps the card
+  /// art instantly with no blank frame.
+  static void _precacheBothLanguages(BuildContext context) {
+    if (_precached) return;
+    _precached = true;
+    for (final g in const ['snl', 'memory_grid', 'my_first', 'thank_you']) {
+      for (final l in const ['en', 'hi']) {
+        precacheImage(AssetImage('assets/home/card_${g}_$l.webp'), context);
+      }
+    }
+  }
+
   void _push(BuildContext context, Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
   @override
   Widget build(BuildContext context) {
+    // Figma "Home - L0 Final EN": row 1 cards are 152×148, row 2 are
+    // 152×152; art is 120px (Thank You 124px), centred on the card face.
+    // The game names are part of the artwork (English / Hindi versions).
+    // Card art is language-specific (the game name is part of the picture).
+    // Lossless WebP — pixel-identical to the supplied PNGs.
+    final lang = isHi ? 'hi' : 'en';
+    _precacheBothLanguages(context);
     final cards = [
       _GameModuleCard(
         palette: AppColors.snakesAndLadders,
-        image: 'assets/home/snakes_and_ladders.webp',
+        image: 'assets/home/card_snl_$lang.webp',
+        imageSize: 120,
+        faceHeight: 148,
         label: isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
         onTap: () => _push(context, const SnlScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.memoryGrid,
-        image: 'assets/home/memory_grid.webp',
+        image: 'assets/home/card_memory_grid_$lang.webp',
+        imageSize: 120,
+        faceHeight: 148,
         label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
         onTap: () => _push(context, const MemoryGridHomeScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.first,
-        image: 'assets/home/first.webp',
+        image: 'assets/home/card_my_first_$lang.webp',
+        imageSize: 120,
+        faceHeight: 152,
         label: isHi ? 'मेरा पहला' : 'My First',
         onTap: () => _push(context, const FirstScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.thankYou,
-        image: 'assets/home/thank_you.webp',
+        image: 'assets/home/card_thank_you_$lang.webp',
+        imageSize: 124,
+        faceHeight: 152,
         label: isHi ? 'धन्यवाद' : 'Thank You',
         onTap: () => _push(context, const ThankYouScreen()),
       ),
@@ -272,22 +319,26 @@ class _GameGrid extends StatelessWidget {
   }
 }
 
-/// Figma "Game Module Card" (Size=Large): gradient face, radius 24,
-/// 6px solid drop-shadow ledge, 16 top / 12 bottom padding, 92×92 art,
-/// 8px gap, label Baloo 2 ExtraBold 16 / 1.25 in text/primary.
-/// Pressed = 18% black overlay (plus the shared 3px press-down).
+/// Figma "Home - L0 Final" game card: gradient face, radius 24, 6px solid
+/// ledge, game artwork (with its name baked in) centred on the face.
+/// Pressed = 18% black overlay plus the shared 3px press-down.
+/// A diagonal light sweep ([_CardShimmer]) passes over each card at
+/// random intervals so the screen feels alive.
 class _GameModuleCard extends StatelessWidget {
-  static const double faceHeight = 16 + 92 + 8 + 20 + 12; // 148
   static const double ledge = 6;
 
   final GameCardPalette palette;
   final String image;
+  final double imageSize;
+  final double faceHeight;
   final String label;
   final VoidCallback onTap;
 
   const _GameModuleCard({
     required this.palette,
     required this.image,
+    required this.imageSize,
+    required this.faceHeight,
     required this.label,
     required this.onTap,
   });
@@ -307,36 +358,105 @@ class _GameModuleCard extends StatelessWidget {
           shadowOffset: ledge,
           pressedOverlayColor: const Color(0x2E000000), // 18% black
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Image.asset(
                   image,
-                  width: 92,
-                  height: 92,
+                  width: imageSize,
+                  height: imageSize,
                   fit: BoxFit.contain,
-                  filterQuality: FilterQuality.medium,
+                  filterQuality: FilterQuality.high,
                 ),
-                const SizedBox(height: 8),
-                // Scales down (never wraps) if a longer Hindi label
-                // wouldn't fit the card width.
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    softWrap: false,
-                    style: AppText.labelCard(),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const _CardShimmer(radius: 24),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// A soft white band that sweeps diagonally across the card, then waits a
+/// random 3–8 s before the next pass (first pass staggered 0.8–4 s), so the
+/// four cards glint at different, unpredictable moments — the "alive"
+/// idle polish seen in high-end casual games. Skipped entirely when the
+/// phone's "remove animations" accessibility setting is on.
+class _CardShimmer extends StatefulWidget {
+  final double radius;
+  const _CardShimmer({required this.radius});
+
+  @override
+  State<_CardShimmer> createState() => _CardShimmerState();
+}
+
+class _CardShimmerState extends State<_CardShimmer> with SingleTickerProviderStateMixin {
+  static final _rng = Random();
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+  Timer? _next;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule(first: true);
+  }
+
+  void _schedule({bool first = false}) {
+    final ms = first ? 800 + _rng.nextInt(3200) : 3000 + _rng.nextInt(5000);
+    _next = Timer(Duration(milliseconds: ms), () async {
+      if (!mounted) return;
+      if (!(MediaQuery.maybeDisableAnimationsOf(context) ?? false)) {
+        await _c.forward(from: 0).orCancel.catchError((_) {});
+      }
+      if (mounted) _schedule();
+    });
+  }
+
+  @override
+  void dispose() {
+    _next?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) {
+            if (_c.value == 0 || _c.value == 1) return const SizedBox.expand();
+            final t = Curves.easeInOutCubic.transform(_c.value);
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: const Alignment(-1, -1),
+                  end: const Alignment(1, 1),
+                  colors: const [Color(0x00FFFFFF), Color(0x00FFFFFF), Color(0x55FFFFFF), Color(0x00FFFFFF), Color(0x00FFFFFF)],
+                  stops: const [0.0, 0.4, 0.5, 0.6, 1.0],
+                  transform: _SlideGradient(-1.2 + 2.4 * t),
+                ),
+              ),
+              child: const SizedBox.expand(),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Moves a gradient along its own diagonal by [fraction] of the box size.
+class _SlideGradient extends GradientTransform {
+  final double fraction;
+  const _SlideGradient(this.fraction);
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(bounds.width * fraction, bounds.height * fraction, 0);
 }
