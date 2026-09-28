@@ -2,12 +2,17 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/player_score_chip.dart';
+import '../../core/widgets/screen_bottom_bar.dart';
 import 'memory_grid_home_screen.dart' show MgHowToPlaySheet;
 import 'mg_confetti.dart';
 import 'mg_data.dart';
@@ -374,6 +379,15 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   }
 
   // ---- Build -------------------------------------------------------------
+  //
+  // Figma "Memory Grid L2" (solo, 8:268) / "Memory Grid L3" (duel, 12:900):
+  //   0    Header (Game Empty)                                          56
+  //   56   Score Section — solo: Streak · Lives / duel: Yellow · Red    67–71
+  //        Grid: 340 wide (10px margins), 8px gaps, radius-12 tiles,
+  //        centred in the space above the status line
+  //   584  Status line (label/card 16) — muted in solo, player colour in duel
+  //        Hint pill (kept by request; not in the frames)
+  //   670  Bottom bar                                                   50
 
   @override
   Widget build(BuildContext context) {
@@ -381,18 +395,29 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = MgText(lang);
-        return Scaffold(
-          backgroundColor: MgData.screenBg,
-          body: SafeArea(
-            child: Stack(
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, MgData.screenBg),
+            systemNavigationBarIconBrightness: Brightness.light,
+          ),
+          child: Scaffold(
+            backgroundColor: MgData.screenBg,
+            body: Stack(
               children: [
                 Column(
                   children: [
-                    GameHeader(title: '', onBack: _quitToHome, onHelp: () => _openHow(t)),
+                    SafeArea(
+                      bottom: false,
+                      child: GameHeader(title: '', onBack: _quitToHome, onHelp: () => _openHow(t)),
+                    ),
                     _buildStatusBar(t),
                     Expanded(
                       child: _showCountdown ? _buildCountdown(t) : _buildPlayArea(t),
                     ),
+                    const ScreenBottomBar(),
                   ],
                 ),
                 Positioned.fill(child: MgConfetti(key: _confettiKey, duration: const Duration(milliseconds: 1600))),
@@ -409,66 +434,81 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   Widget _buildStatusBar(MgText t) {
     if (_isDuel) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Expanded(child: _pscore(t.p1, _duelScores[0], _activePlayer == 0, MgData.dotLit)),
-            const SizedBox(width: 10),
-            Expanded(child: _pscore(t.p2, _duelScores[1], _activePlayer == 1, MgData.gold)),
+            Expanded(
+              child: PlayerScoreChip(
+                name: t.p1,
+                score: _duelScores[0],
+                unit: t.pts,
+                swatch: PlayerColors.yellowSwatch,
+                border: PlayerColors.yellowBorder,
+                active: _activePlayer != 1,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: PlayerScoreChip(
+                name: t.p2,
+                score: _duelScores[1],
+                unit: t.pts,
+                swatch: PlayerColors.redSwatch,
+                border: PlayerColors.redBorder,
+                active: _activePlayer == 1,
+              ),
+            ),
           ],
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _statCard(children: [
-            Text('$_streak', style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 8),
-            Text(t.streak, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white60)),
-          ]),
-          _statCard(children: [
-            for (int i = 0; i < MgData.maxLives; i++)
-              Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: Opacity(
-                  opacity: i < _lives ? 1 : 0.25,
-                  child: Text('❤️', style: TextStyle(fontSize: i < _lives ? 18 : 15)),
-                ),
+          Expanded(child: _statBox(value: Text('$_streak', style: _statNumber), label: t.streak)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _statBox(
+              value: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.favorite_rounded, size: 14, color: Colors.white),
+                  const SizedBox(width: 6),
+                  Text('$_lives', style: _statNumber),
+                ],
               ),
-          ]),
+              label: t.lives,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statCard({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(14)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
-    );
-  }
+  TextStyle get _statNumber => AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800, height: 17 / 15);
 
-  Widget _pscore(String name, int value, bool active, Color activeColor) {
-    return AnimatedOpacity(
-      opacity: active ? 1 : 0.55,
-      duration: const Duration(milliseconds: 200),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: active ? activeColor : Colors.transparent, width: 2),
-        ),
-        child: Column(
-          children: [
-            Text(name, style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700)),
-            Text('$value', style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w800)),
-          ],
-        ),
+  /// Figma solo Score Section box: surface fill, 2px border/default, radius
+  /// 16, 16/10 padding; number ExtraBold 15/17 over label SemiBold 11/12,
+  /// muted, +0.66 tracking, uppercase.
+  Widget _statBox({required Widget value, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderDefault, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          value,
+          const SizedBox(height: 2),
+          Text(
+            label.toUpperCase(),
+            style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w600, height: 12 / 11, letterSpacing: 0.66, color: AppColors.textMuted),
+          ),
+        ],
       ),
     );
   }
@@ -486,7 +526,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
             duration: const Duration(milliseconds: 400),
             curve: Curves.elasticOut,
             builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-            child: Text('$_countdownTick', style: AppFonts.baloo(fontSize: 104, fontWeight: FontWeight.w800, color: MgData.accent2)),
+            child: Text('$_countdownTick',
+                style: AppFonts.baloo(fontSize: 104, fontWeight: FontWeight.w800, height: 1.0, color: MgData.titleAccent)),
           ),
         ],
       ),
@@ -494,115 +535,133 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   }
 
   Widget _buildPlayArea(MgText t) {
-    return Column(
-      children: [
-        if (!_isDuel) ...[
-          const SizedBox(height: 4),
-          Text(
-            t.mode(widget.level!),
-            style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white38, letterSpacing: 1.5),
-          ),
-        ],
-        const SizedBox(height: 10),
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: GridView.count(
-                  crossAxisCount: _gridSize,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  children: List.generate(_gridSize * _gridSize, (i) => _buildDot(i)),
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Status (16 × 1.25) + 12 + hint pill (36) + bottom breathing room.
+        const below = 20.0 + 12 + 36 + 20;
+        final gridSide = (c.maxWidth - 20).clamp(160.0, (c.maxHeight - below - 36).clamp(160.0, 2000.0)).toDouble();
+        const gap = 8.0;
+        final tile = (gridSide - gap * (_gridSize - 1)) / _gridSize;
+        return Column(
+          children: [
+            const Spacer(),
+            SizedBox.square(
+              dimension: gridSide,
+              child: Column(
+                children: [
+                  for (int r = 0; r < _gridSize; r++) ...[
+                    if (r > 0) const SizedBox(height: gap),
+                    Row(
+                      children: [
+                        for (int col = 0; col < _gridSize; col++) ...[
+                          if (col > 0) const SizedBox(width: gap),
+                          SizedBox.square(dimension: tile, child: _buildTile(r * _gridSize + col, tile)),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 36),
+            SizedBox(
+              height: 20,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _statusText(t),
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800, height: 1.25, color: _statusColor()),
                 ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _statusText(t),
-          textAlign: TextAlign.center,
-          style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: _statusColor()),
-        ),
-        const SizedBox(height: 14),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: _buildHintButton(t),
-        ),
-      ],
+            const SizedBox(height: 12),
+            _buildHintButton(t),
+            const Spacer(),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildDot(int i) {
+  /// Figma tile: radius 12. Empty = slot-empty (35% black); lit / found =
+  /// module/green; wrong tap = module/coral. Found tiles show their order
+  /// (stat/number, text/on-light), scaled to the tile size.
+  Widget _buildTile(int i, double size) {
     final isFound = _found.contains(i);
     final isWrong = _wrongIndex == i;
-    final isLitFromReveal = (_phase == _Phase.showing && _target.contains(i)) || _hintRevealed.contains(i);
+    final isHint = _hintRevealed.contains(i) && !isFound;
+    final isLit = _phase == _Phase.showing && _target.contains(i);
 
-    Color color = MgData.dotIdle;
-    Widget? overlay;
+    Color color = MgData.tileEmpty;
+    Widget? label;
     if (isWrong) {
-      color = MgData.red;
+      color = MgData.tileWrong;
     } else if (isFound) {
-      color = MgData.green;
-      overlay = Text(
-        '${_found.indexOf(i) + 1}',
-        style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w800, color: const Color(0xFF052E16)),
+      color = MgData.tileLit;
+      label = FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          '${_found.indexOf(i) + 1}',
+          style: AppFonts.baloo(fontSize: 32 * size / 108, fontWeight: FontWeight.w800, height: 1.05, color: MgData.tileNumber),
+        ),
       );
-    } else if (isLitFromReveal) {
-      color = MgData.dotLit;
+    } else if (isLit) {
+      color = MgData.tileLit;
+    } else if (isHint) {
+      color = MgData.tileLit.withAlpha(150);
     }
 
     final locked = _phase != _Phase.play;
-
     return GestureDetector(
       onTap: locked ? null : () => _isDuel ? _duelTap(i) : _soloTap(i),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: (isLitFromReveal || isFound)
-              ? [BoxShadow(color: MgData.dotLit.withOpacity(0.5), blurRadius: 14)]
-              : (isWrong ? [BoxShadow(color: MgData.red.withOpacity(0.6), blurRadius: 14)] : null),
-        ),
+        duration: const Duration(milliseconds: 160),
         alignment: Alignment.center,
-        child: overlay,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12 * (size / 108).clamp(0.6, 1.0))),
+        child: label,
       ),
     );
   }
 
+  /// Hint pill (kept from the original game; styled with the design-system
+  /// surface/border tokens). Solo shows remaining hints; duel is unlimited.
   Widget _buildHintButton(MgText t) {
     final showCount = !_isDuel;
     final enabled = _isDuel ? _phase == _Phase.play : (_hints > 0 && _phase == _Phase.play);
-    return GestureDetector(
-      onTap: enabled ? (_isDuel ? _duelHint : _soloHint) : null,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.35,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          decoration: BoxDecoration(
-            color: MgData.gold.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(color: MgData.gold.withOpacity(0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('💡', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(t.hint, style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w700, color: MgData.gold)),
-              if (showCount) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: MgData.gold, borderRadius: BorderRadius.circular(50)),
-                  child: Text('$_hints', style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF3B2503))),
-                ),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: t.hint,
+      child: GestureDetector(
+        onTap: enabled ? (_isDuel ? _duelHint : _soloHint) : null,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: enabled ? 1 : 0.4,
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.borderDefault),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lightbulb_rounded, size: 16, color: AppColors.brandYellow),
+                const SizedBox(width: 6),
+                Text(t.hint, style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w700)),
+                if (showCount) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                    decoration: BoxDecoration(color: AppColors.brandYellow, borderRadius: BorderRadius.circular(999)),
+                    child: Text('$_hints', style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textOnLight)),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -632,11 +691,14 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     switch (_statusKind) {
       case _StatusKind.memorise:
       case _StatusKind.hereThey:
-        return MgData.accent2;
+        return MgData.titleAccent;
       case _StatusKind.turn:
-        return _current == 0 ? MgData.dotLit : MgData.gold;
+        return _current == 0 ? PlayerColors.yellowBorder : PlayerColors.redBorder;
+      case _StatusKind.outLives:
+      case _StatusKind.lifeLeft:
+        return MgData.tileWrong;
       default:
-        return Colors.white.withOpacity(0.9);
+        return AppColors.textMuted;
     }
   }
 
@@ -668,7 +730,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   Widget _buildGameOver(MgText t) {
     return Positioned.fill(
       child: Container(
-        color: const Color(0xF21A0B2E),
+        color: const Color(0xF20A2A1B),
         alignment: Alignment.center,
         child: SingleChildScrollView(
           child: Padding(
@@ -721,27 +783,9 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                     ),
                   ),
                 const SizedBox(height: 26),
-                GestureDetector(
-                  onTap: () {
-                    Fx.tap();
-                    _playAgain();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(maxWidth: 340),
-                    height: 48,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFE08A), Color(0xFFC97F00)],
-                      ),
-                      boxShadow: const [BoxShadow(color: Color(0xFF7A4B00), offset: Offset(0, 4))],
-                    ),
-                    child: Text(t.playAgain, style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w700, color: const Color(0xFF1B2340))),
-                  ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: ChunkyButton(label: t.playAgain, onTap: _playAgain),
                 ),
                 const SizedBox(height: 16),
                 GestureDetector(

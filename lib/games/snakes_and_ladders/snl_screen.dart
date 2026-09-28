@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/player_score_chip.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'snl_board.dart';
 import 'snl_data.dart';
@@ -336,10 +337,10 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       child: Row(
         children: [
           Expanded(
-            child: _PlayerChip(
+            child: PlayerScoreChip(
               name: t.yellow,
-              pts: _pos['yellow']! * 2,
-              ptsLabel: t.pts,
+              score: _pos['yellow']! * 2,
+              unit: t.pts,
               swatch: SnlData.yellowSwatch,
               border: SnlData.yellowActiveBorder,
               active: _turn == 'yellow',
@@ -347,10 +348,10 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _PlayerChip(
+            child: PlayerScoreChip(
               name: t.red,
-              pts: _pos['red']! * 2,
-              ptsLabel: t.pts,
+              score: _pos['red']! * 2,
+              unit: t.pts,
               swatch: SnlData.redSwatch,
               border: SnlData.redActiveBorder,
               active: _turn == 'red',
@@ -561,80 +562,6 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Figma "Score Section" player chip: background/surface fill, 2px border
-/// in the player's colour, radius 16, 16/10 padding, 32px avatar, 12px gap.
-/// Name Bold 12/13 · score Bold 18/20 + "pts" Medium 11/12 (text/muted).
-/// The player whose turn it isn't is shown at 70% opacity.
-class _PlayerChip extends StatelessWidget {
-  final String name;
-  final int pts;
-  final String ptsLabel;
-  final Color swatch;
-  final Color border;
-  final bool active;
-
-  const _PlayerChip({
-    required this.name,
-    required this.pts,
-    required this.ptsLabel,
-    required this.swatch,
-    required this.border,
-    required this.active,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: active ? 1 : 0.7,
-      duration: const Duration(milliseconds: 250),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border, width: 2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: swatch,
-                border: Border.all(color: const Color(0xD9FFFFFF), width: 3),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, height: 13 / 12)),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text('$pts', style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w700, height: 20 / 18)),
-                      const SizedBox(width: 4),
-                      Text(ptsLabel,
-                          style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w500, height: 12 / 11, color: AppColors.textMuted)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

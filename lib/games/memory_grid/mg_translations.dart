@@ -15,6 +15,9 @@ class MgText {
 
   bool get _hi => lang == AppLang.hi;
 
+  String get titleA => _hi ? 'मेमोरी ' : 'Memory ';
+  String get titleB => _hi ? 'जाल' : 'Grid';
+  String get play => _hi ? 'खेलें →' : 'Play →';
   String get tagline => _hi ? 'याद करो · दबाओ · दोहराओ' : 'Memorise, Tap, and Win!';
   String get soloHeading => _hi ? 'सोलो — अपना सर्वश्रेष्ठ करो' : 'Solo — Beat Your Best';
   String get duelHeading => _hi ? 'साथ खेलें' : 'Play Together';
@@ -24,10 +27,11 @@ class MgText {
   String easyDesc(int n) => _hi ? '$n ब्लॉक' : '$n blocks';
   String get duelName => _hi ? '2 खिलाड़ी ऑफलाइन' : '2 Players Offline';
   String get duelSub => _hi ? 'एक ही डिवाइस पर बारी-बारी से खेलें, ज़्यादा स्कोर जीतता है' : 'Same device. Take turns. Highest score wins';
-  String get p1 => _hi ? 'खिलाड़ी 1' : 'Player 1';
-  String get p2 => _hi ? 'खिलाड़ी 2' : 'Player 2';
-  String get p1turn => _hi ? 'खिलाड़ी 1 की बारी' : "Player 1's turn";
-  String get p2turn => _hi ? 'खिलाड़ी 2 की बारी' : "Player 2's turn";
+  String get p1 => _hi ? 'पीला' : 'Yellow';
+  String get p2 => _hi ? 'लाल' : 'Red';
+  String get pts => _hi ? 'अंक' : 'pts';
+  String get p1turn => _hi ? 'पीले की बारी' : "Yellow's Turn";
+  String get p2turn => _hi ? 'लाल की बारी' : "Red's Turn";
   String get memorise => _hi ? 'याद करो!' : 'Memorise!';
   String get hereThey => _hi ? 'ये रहे!' : 'Here they are!';
   String get memorizeIn => _hi ? 'याद करो' : 'Memorize in';
@@ -42,7 +46,7 @@ class MgText {
     return {'easy': 'Easy Mode', 'medium': 'Medium Mode', 'hard': 'Hard Mode'}[level] ?? '';
   }
 
-  String tap(int a, int b) => _hi ? 'ब्लॉक दबाओ — $a / $b' : 'Tap the blocks — $a of $b';
+  String tap(int a, int b) => _hi ? 'ब्लॉक दबाओ — $a / $b' : 'Tap the blocks - $a of $b';
   String get outLives => _hi ? 'जान खत्म!' : 'Out of lives!';
   String get lifeLeft => _hi ? '1 जान बची!' : '1 life left!';
   String livesLeft(int n) => _hi ? '$n जान बची' : '$n lives left';
@@ -51,7 +55,7 @@ class MgText {
   String reachedStreak(int n) => _hi ? 'आपकी स्ट्रीक $n तक पहुंची' : 'You reached a streak of $n';
   String get betterLuck => _hi ? 'अगली बार बेहतर!' : 'Better luck this time!';
   String bestStreak(int n) => _hi ? 'बेस्ट स्ट्रीक: $n' : 'Best streak: $n';
-  String wins(int n) => _hi ? 'खिलाड़ी $n जीता!' : 'Player $n Wins!';
+  String wins(int n) => _hi ? '${n == 1 ? 'पीला' : 'लाल'} जीता!' : '${n == 1 ? 'Yellow' : 'Red'} Wins!';
   String get winSub => _hi ? 'बढ़िया याददाश्त!' : 'Great memory!';
   String get tie => _hi ? 'बराबरी!' : "It's a Tie!";
   String get tieSub => _hi ? 'दोनों बराबर!' : 'Evenly matched!';
@@ -81,7 +85,7 @@ class MgText {
   List<List<String>> get howStepsDuel => _hi
       ? const [
           ['साथ याद करो', 'शुरुआत में 10 ब्लॉक जलेंगे। दोनों खिलाड़ी उन्हें याद करें।'],
-          ['बारी-बारी खेलो', 'हर बारी में एक ब्लॉक दबाओ — पहले खिलाड़ी 1।'],
+          ['बारी-बारी खेलो', 'हर बारी में एक ब्लॉक दबाओ — पहले पीला।'],
           ['अंक कमाओ', 'सही ब्लॉक पर 1 अंक मिलेगा। गलत होने पर लाल चमकेगा — कोई अंक नहीं।'],
           ['बारी बदलती है', 'सही हो या गलत, हर दबाने के बाद बारी बदल जाती है।'],
           ['असीमित हिंट', 'कोई भी खिलाड़ी बाकी ब्लॉक दिखाने के लिए हिंट दबा सकता है।'],
@@ -89,7 +93,7 @@ class MgText {
         ]
       : const [
           ['Memorise Together', '10 blocks light up at the start. Both players memorise them.'],
-          ['Take Turns', 'Players tap one block per turn — Player 1 goes first.'],
+          ['Take Turns', 'Players tap one block per turn — Yellow goes first.'],
           ['Score a Point', 'A correct block earns 1 point. Wrong flashes red — no point.'],
           ['Turn Passes', 'Right or wrong, the turn passes after each tap.'],
           ['Unlimited Hints', 'Either player can tap Hint to reveal remaining blocks.'],
