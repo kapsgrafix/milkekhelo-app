@@ -712,14 +712,30 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
             duration: const Duration(milliseconds: 350),
             curve: Curves.elasticOut,
             builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-            child: Text(
-              _flashText ?? '',
-              style: AppFonts.baloo(fontSize: 44, fontWeight: FontWeight.w800).copyWith(
-                foreground: Paint()
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 2
-                  ..color = const Color(0xFF0A3D20),
-              ),
+            // White fill on top of a thick dark-green outline (a Text with a
+            // stroke `foreground` paints ONLY the outline, so the two are
+            // stacked), plus a soft drop shadow so it reads over the grid.
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  _flashText ?? '',
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 44, fontWeight: FontWeight.w800).copyWith(
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 7
+                      ..strokeJoin = StrokeJoin.round
+                      ..color = const Color(0xFF0A3D20),
+                    shadows: const [Shadow(color: Color(0x99000000), blurRadius: 12, offset: Offset(0, 4))],
+                  ),
+                ),
+                Text(
+                  _flashText ?? '',
+                  textAlign: TextAlign.center,
+                  style: AppFonts.baloo(fontSize: 44, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+              ],
             ),
           ),
         ),
