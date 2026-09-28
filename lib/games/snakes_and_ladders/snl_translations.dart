@@ -9,7 +9,7 @@ class SnlText {
 
   bool get _hi => lang == AppLang.hi;
 
-  String get title => _hi ? 'स्नेक्स एंड लैडर्स' : 'Snakes & Ladders';
+  String get title => _hi ? 'साँप-सीढ़ी' : 'Snakes & Ladders';
   String get getReadyIn => _hi ? 'तैयार हो जाओ' : 'Get Ready in';
   String get yellow => _hi ? 'पीला' : 'Yellow';
   String get red => _hi ? 'लाल' : 'Red';

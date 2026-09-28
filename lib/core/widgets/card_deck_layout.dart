@@ -12,7 +12,7 @@ import 'screen_bottom_bar.dart';
 ///
 ///   0    Header                                   56
 ///   80   Progress Bar (12px side padding)         14
-///   138  Prompt (label/card, action/primary)      20
+///   138  Prompt (ExtraBold 20, action/primary)    25
 ///        · 24 ·
 ///        Card slot                                240×320, radius 24
 ///        · 24 ·
@@ -107,8 +107,8 @@ class CardDeckLayout extends StatelessWidget {
   Widget _buildMiddle() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // prompt (16 × 1.25) + hint (11 × 1.3) + two 24px gaps.
-        const fixed = 20.0 + 14.3 + 24 + 24;
+        // prompt (20 × 1.25) + hint (11 × 1.3) + two 24px gaps.
+        const fixed = 25.0 + 14.3 + 24 + 24;
         final available = constraints.maxHeight - fixed - 16; // keep a little breathing room
         final h = available.clamp(120.0, cardHeight).toDouble();
         final cardSize = Size(h * cardWidth / cardHeight, h);
@@ -122,7 +122,7 @@ class CardDeckLayout extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppText.labelCard(color: AppColors.actionPrimary),
+                style: AppFonts.baloo(fontSize: 20, fontWeight: FontWeight.w800, height: 1.25, color: AppColors.actionPrimary),
               ),
             ),
             const SizedBox(height: 24),

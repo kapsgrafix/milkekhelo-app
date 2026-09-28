@@ -233,25 +233,25 @@ class _GameGrid extends StatelessWidget {
       _GameModuleCard(
         palette: AppColors.snakesAndLadders,
         image: 'assets/home/snakes_and_ladders.webp',
-        label: isHi ? 'स्नेक्स एंड लैडर्स' : 'Snakes & Ladders',
+        label: isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
         onTap: () => _push(context, const SnlScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.memoryGrid,
         image: 'assets/home/memory_grid.webp',
-        label: isHi ? 'मेमोरी ग्रिड' : 'Memory Grid',
+        label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
         onTap: () => _push(context, const MemoryGridHomeScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.first,
         image: 'assets/home/first.webp',
-        label: isHi ? 'माई फर्स्ट' : 'My First',
+        label: isHi ? 'मेरा पहला' : 'My First',
         onTap: () => _push(context, const FirstScreen()),
       ),
       _GameModuleCard(
         palette: AppColors.thankYou,
         image: 'assets/home/thank_you.webp',
-        label: isHi ? 'थैंक यू' : 'Thank You',
+        label: isHi ? 'धन्यवाद' : 'Thank You',
         onTap: () => _push(context, const ThankYouScreen()),
       ),
     ];

@@ -200,18 +200,24 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     }
 
     if (SnlData.snakes.containsKey(current)) {
-      Fx.snake();
       setState(() => _msgKind = _MsgKind.snakeBite);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
+      // Sound + haptic fire in the same frame the goti starts sliding down.
+      Fx.snake();
       setState(() => _pos[color] = SnlData.snakes[current]!);
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
       _finishTurn();
     } else if (SnlData.ladders.containsKey(current)) {
-      Fx.ladder();
       setState(() => _msgKind = _MsgKind.ladderUp);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
+      // Sound + haptic fire in the same frame the goti starts climbing.
+      Fx.ladder();
       setState(() => _pos[color] = SnlData.ladders[current]!);
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
       _finishTurn();
     } else if (current == 100) {
       setState(() => _msgKind = _MsgKind.reached100);

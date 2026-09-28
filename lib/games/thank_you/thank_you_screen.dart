@@ -76,7 +76,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> {
         final total = _deck.length;
         return CardDeckLayout(
           background: AppColors.screenCoral,
-          title: isHi ? 'थैंक यू' : 'Thank You',
+          title: isHi ? 'धन्यवाद' : 'Thank You',
           onBack: () => Navigator.of(context).pop(),
           onHelp: () => _openHow(isHi),
           progressIndex: _done ? total : _page + 1,
@@ -93,6 +93,8 @@ class _ThankYouScreenState extends State<ThankYouScreen> {
           nextLabel: _done ? (isHi ? 'फिर खेलें' : 'Play Again') : (isHi ? 'अगला कार्ड →' : 'Next Card →'),
           cardArea: (context, cardSize) => PageView.builder(
             controller: _controller,
+            // Don't clip to the card slot, so the card's drop shadow shows.
+            clipBehavior: Clip.none,
             itemCount: total + 1, // + the "All done" page
             onPageChanged: (p) {
               // Card flip on every move; a little celebration on reaching the end.
