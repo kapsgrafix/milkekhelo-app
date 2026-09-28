@@ -270,6 +270,7 @@ class _GameGrid extends StatelessWidget {
     _precacheBothLanguages(context);
     final cards = [
       _GameModuleCard(
+        index: 0,
         palette: AppColors.snakesAndLadders,
         image: 'assets/home/card_snl_$lang.webp',
         imageSize: 120,
@@ -278,6 +279,7 @@ class _GameGrid extends StatelessWidget {
         onTap: () => _push(context, const SnlScreen()),
       ),
       _GameModuleCard(
+        index: 1,
         palette: AppColors.memoryGrid,
         image: 'assets/home/card_memory_grid_$lang.webp',
         imageSize: 120,
@@ -286,6 +288,7 @@ class _GameGrid extends StatelessWidget {
         onTap: () => _push(context, const MemoryGridHomeScreen()),
       ),
       _GameModuleCard(
+        index: 2,
         palette: AppColors.first,
         image: 'assets/home/card_my_first_$lang.webp',
         imageSize: 120,
@@ -294,6 +297,7 @@ class _GameGrid extends StatelessWidget {
         onTap: () => _push(context, const FirstScreen()),
       ),
       _GameModuleCard(
+        index: 3,
         palette: AppColors.thankYou,
         image: 'assets/home/card_thank_you_$lang.webp',
         imageSize: 124,
@@ -334,7 +338,12 @@ class _GameModuleCard extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
+  /// Position in the grid (0–3); staggers the heartbeat so the cards pulse
+  /// one after another.
+  final int index;
+
   const _GameModuleCard({
+    required this.index,
     required this.palette,
     required this.image,
     required this.imageSize,
@@ -348,7 +357,9 @@ class _GameModuleCard extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      child: SizedBox(
+      child: _Heartbeat(
+        delay: Duration(milliseconds: 220 * index),
+        child: SizedBox(
         height: faceHeight + ledge,
         child: PressableCard(
           topColor: palette.top,
@@ -375,12 +386,14 @@ class _GameModuleCard extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 }
 
-/// A soft white band that sweeps diagonally across the card, then waits a
-/// random 3–8 s before the next pass (first pass staggered 0.8–4 s), so the
+/// A soft white band that glides diagonally across the card (2.4 s, sine
+/// easing), then waits a random 4–9 s before the next pass (first pass
+/// staggered 1.2–4.7 s), so the
 /// four cards glint at different, unpredictable moments — the "alive"
 /// idle polish seen in high-end casual games. Skipped entirely when the
 /// phone's "remove animations" accessibility setting is on.
@@ -395,7 +408,7 @@ class _CardShimmer extends StatefulWidget {
 class _CardShimmerState extends State<_CardShimmer> with SingleTickerProviderStateMixin {
   static final _rng = Random();
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
   Timer? _next;
 
   @override
@@ -405,7 +418,7 @@ class _CardShimmerState extends State<_CardShimmer> with SingleTickerProviderSta
   }
 
   void _schedule({bool first = false}) {
-    final ms = first ? 800 + _rng.nextInt(3200) : 3000 + _rng.nextInt(5000);
+    final ms = first ? 1200 + _rng.nextInt(3500) : 4000 + _rng.nextInt(5000);
     _next = Timer(Duration(milliseconds: ms), () async {
       if (!mounted) return;
       if (!(MediaQuery.maybeDisableAnimationsOf(context) ?? false)) {
@@ -431,14 +444,23 @@ class _CardShimmerState extends State<_CardShimmer> with SingleTickerProviderSta
           animation: _c,
           builder: (context, _) {
             if (_c.value == 0 || _c.value == 1) return const SizedBox.expand();
-            final t = Curves.easeInOutCubic.transform(_c.value);
+            final t = Curves.easeInOutSine.transform(_c.value);
             return DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: const Alignment(-1, -1),
                   end: const Alignment(1, 1),
-                  colors: const [Color(0x00FFFFFF), Color(0x00FFFFFF), Color(0x55FFFFFF), Color(0x00FFFFFF), Color(0x00FFFFFF)],
-                  stops: const [0.0, 0.4, 0.5, 0.6, 1.0],
+                  // Wide, feathered band so the glint glides rather than flashes.
+                  colors: const [
+                    Color(0x00FFFFFF),
+                    Color(0x00FFFFFF),
+                    Color(0x14FFFFFF),
+                    Color(0x3DFFFFFF),
+                    Color(0x14FFFFFF),
+                    Color(0x00FFFFFF),
+                    Color(0x00FFFFFF),
+                  ],
+                  stops: const [0.0, 0.3, 0.41, 0.5, 0.59, 0.7, 1.0],
                   transform: _SlideGradient(-1.2 + 2.4 * t),
                 ),
               ),
@@ -459,4 +481,56 @@ class _SlideGradient extends GradientTransform {
   @override
   Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
       Matrix4.translationValues(bounds.width * fraction, bounds.height * fraction, 0);
+}
+
+/// Subtle "lub-dub" heartbeat: the card swells to 103% and back, then a
+/// smaller 102% beat, then rests — one cycle every 2.6 s. Cards start
+/// [delay] apart so the beat ripples across the grid. Off when the phone's
+/// "remove animations" accessibility setting is on.
+class _Heartbeat extends StatefulWidget {
+  final Duration delay;
+  final Widget child;
+  const _Heartbeat({required this.delay, required this.child});
+
+  @override
+  State<_Heartbeat> createState() => _HeartbeatState();
+}
+
+class _HeartbeatState extends State<_Heartbeat> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
+  Timer? _start;
+
+  static final Animatable<double> _beat = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.03).chain(CurveTween(curve: Curves.easeOut)), weight: 7),
+    TweenSequenceItem(tween: Tween(begin: 1.03, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 8),
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.02).chain(CurveTween(curve: Curves.easeOut)), weight: 6),
+    TweenSequenceItem(tween: Tween(begin: 1.02, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 12),
+    TweenSequenceItem(tween: ConstantTween(1.0), weight: 67),
+  ]);
+
+  @override
+  void initState() {
+    super.initState();
+    _start = Timer(widget.delay + const Duration(milliseconds: 600), () {
+      if (mounted) _c.repeat();
+    });
+  }
+
+  @override
+  void dispose() {
+    _start?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return widget.child;
+    return AnimatedBuilder(
+      animation: _c,
+      child: widget.child,
+      builder: (context, child) => Transform.scale(scale: _beat.evaluate(_c), child: child),
+    );
+  }
 }

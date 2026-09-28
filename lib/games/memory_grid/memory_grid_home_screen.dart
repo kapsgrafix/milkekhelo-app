@@ -86,9 +86,9 @@ class MemoryGridHomeScreen extends StatelessWidget {
                           filterQuality: FilterQuality.high,
                           semanticLabel: t.titleA + t.titleB,
                         ),
-                        const SizedBox(height: 48),
+                        const SizedBox(height: 46), // divider grew to 24 → keeps Figma y
                         _SectionDivider(label: t.soloHeading),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -116,7 +116,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _DifficultyCard(
-                                image: 'assets/memory_grid/solo_hard.webp',
+                                image: 'assets/memory_grid/diff_hard.webp',
                                 name: t.hard,
                                 blocks: t.easyDesc(MgData.levels['hard']!.dots),
                                 play: t.play,
@@ -126,9 +126,9 @@ class MemoryGridHomeScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 29), // 34 − 5px ledge
+                        const SizedBox(height: 27), // 34 − 5px ledge − 2 (taller divider)
                         _SectionDivider(label: t.duelHeading),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         _ChoiceCard(t: t, onTap: () => _start(context, level: null)),
                       ],
                     ),
@@ -161,7 +161,8 @@ class MemoryGridHomeScreen extends StatelessWidget {
   }
 }
 
-/// Figma "Section Divider": 6px dot · dashed line · label (Bold 13) ·
+/// Figma "Section Divider": 6px dot · dashed line · label (Bold 15 — bumped
+/// from Figma's 13 on request) ·
 /// dashed line · 6px dot, 10px gaps.
 class _SectionDivider extends StatelessWidget {
   final String label;
@@ -175,14 +176,14 @@ class _SectionDivider extends StatelessWidget {
           decoration: const BoxDecoration(color: MgData.titleAccent, shape: BoxShape.circle),
         );
     return SizedBox(
-      height: 20,
+      height: 24,
       child: Row(
         children: [
           dot(),
           const SizedBox(width: 10),
           const Expanded(child: CustomPaint(size: Size(double.infinity, 1.5), painter: _DashPainter())),
           const SizedBox(width: 10),
-          Text(label, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w700)),
+          Text(label, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(width: 10),
           const Expanded(child: CustomPaint(size: Size(double.infinity, 1.5), painter: _DashPainter())),
           const SizedBox(width: 10),
