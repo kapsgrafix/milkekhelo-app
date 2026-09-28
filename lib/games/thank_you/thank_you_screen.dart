@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -58,6 +59,7 @@ class _ThankYouScreenState extends State<ThankYouScreen> {
   void _previous() => _controller.previousPage(duration: _pageAnim, curve: Curves.easeOut);
 
   void _reshuffle() {
+    Fx.shuffle();
     setState(() {
       _deck = _shuffled();
       _page = 0;
@@ -92,7 +94,15 @@ class _ThankYouScreenState extends State<ThankYouScreen> {
           cardArea: (context, cardSize) => PageView.builder(
             controller: _controller,
             itemCount: total + 1, // + the "All done" page
-            onPageChanged: (p) => setState(() => _page = p),
+            onPageChanged: (p) {
+              // Card flip on every move; a little celebration on reaching the end.
+              if (p >= total) {
+                Fx.roundWin();
+              } else {
+                Fx.cardFlip();
+              }
+              setState(() => _page = p);
+            },
             itemBuilder: (context, index) {
               final Widget face = index >= total
                   ? _EndCard(isHi: isHi, scale: cardSize.height / CardDeckLayout.cardHeight)

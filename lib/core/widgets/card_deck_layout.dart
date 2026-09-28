@@ -223,11 +223,11 @@ class CardDeckFooter extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Row(
         children: [
-          ChunkyButton.icon(icon: Icons.arrow_back_rounded, semanticLabel: 'Previous card', onTap: onPrevious),
+          ChunkyButton.icon(icon: Icons.arrow_back_rounded, semanticLabel: 'Previous card', onTap: onPrevious, silent: true),
           const SizedBox(width: 12),
-          Expanded(child: ChunkyButton(label: nextLabel, onTap: onNext)),
+          Expanded(child: ChunkyButton(label: nextLabel, onTap: onNext, silent: true)),
           const SizedBox(width: 12),
-          ChunkyButton.icon(icon: Icons.refresh_rounded, semanticLabel: 'Shuffle', onTap: onRefresh),
+          ChunkyButton.icon(icon: Icons.refresh_rounded, semanticLabel: 'Shuffle', onTap: onRefresh, silent: true),
         ],
       ),
     );

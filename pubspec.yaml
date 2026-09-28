@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.2.3
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -22,6 +23,8 @@ flutter:
   assets:
     - assets/home/
     - assets/snakes_and_ladders/
+    - assets/audio/sfx/
+    - assets/audio/music/
 
   # Baloo 2 (SIL Open Font License — see assets/fonts/Baloo2-OFL.txt),
   # bundled so the app works fully offline.

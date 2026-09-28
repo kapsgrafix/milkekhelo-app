@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../feedback/fx.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -20,6 +21,10 @@ class ChunkyButton extends StatefulWidget {
   final double? width;
   final String? semanticLabel;
 
+  /// When true, no tap sound/haptic is played — for buttons whose action
+  /// fires its own feedback (e.g. Next Card → card-flip sound).
+  final bool silent;
+
   const ChunkyButton({
     super.key,
     this.style = ChunkyButtonStyle.primary,
@@ -28,6 +33,7 @@ class ChunkyButton extends StatefulWidget {
     this.onTap,
     this.width,
     this.semanticLabel,
+    this.silent = false,
   })  : _icon = null,
         assert(label != null || child != null);
 
@@ -38,6 +44,7 @@ class ChunkyButton extends StatefulWidget {
     this.onTap,
     this.semanticLabel,
     this.style = ChunkyButtonStyle.secondary,
+    this.silent = false,
   })  : label = null,
         width = 48,
         child = null,
@@ -86,7 +93,12 @@ class _ChunkyButtonState extends State<ChunkyButton> {
       child: Opacity(
         opacity: widget.onTap == null ? 0.4 : 1,
         child: GestureDetector(
-          onTap: widget.onTap,
+          onTap: widget.onTap == null
+              ? null
+              : () {
+                  if (!widget.silent) Fx.tap();
+                  widget.onTap!();
+                },
           onTapDown: (_) => _set(true),
           onTapUp: (_) => _set(false),
           onTapCancel: () => _set(false),

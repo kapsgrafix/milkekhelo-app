@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../feedback/fx.dart';
 import '../localization/app_language.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -53,7 +54,10 @@ class _Segment extends StatelessWidget {
         selected: active,
         label: label == 'EN' ? 'English' : 'हिंदी',
         child: GestureDetector(
-          onTap: onTap,
+          onTap: () {
+            if (!active) Fx.toggle();
+            onTap();
+          },
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),

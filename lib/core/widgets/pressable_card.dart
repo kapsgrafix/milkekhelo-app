@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../feedback/fx.dart';
+
 /// The "3D pressed button" card look used everywhere in the web app's
 /// design system (home screen game tiles, Memory Grid level cards, the
 /// duel card, and every primary CTA button): a flat gradient face sitting
@@ -53,7 +55,12 @@ class _PressableCardState extends State<PressableCard> {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(widget.borderRadius);
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: widget.onTap == null
+          ? null
+          : () {
+              Fx.tap();
+              widget.onTap!();
+            },
       onTapDown: (_) => _setPressed(true),
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/game_header.dart';
@@ -114,15 +115,18 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   void _runCountdown(VoidCallback onDone) {
     _showCountdown = true;
     _countdownTick = 3;
+    Fx.countdown();
     _countdownTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
       final next = _countdownTick - 1;
       if (next <= 0) {
         timer.cancel();
         if (!mounted) return;
+        Fx.goSignal();
         setState(() => _showCountdown = false);
         onDone();
       } else {
         if (!mounted) return;
+        Fx.countdown();
         setState(() => _countdownTick = next);
       }
     });
@@ -163,6 +167,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   void _soloTap(int i) {
     if (_phase != _Phase.play || _found.contains(i)) return;
     if (_target.contains(i)) {
+      Fx.correct();
       setState(() {
         _found.add(i);
         _statusA = _found.length;
@@ -171,6 +176,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         _soloRoundWon();
       }
     } else {
+      Fx.wrong();
       setState(() => _wrongIndex = i);
       _soloLoseLife();
     }
@@ -186,6 +192,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       _saveBest(_streak);
     }
     _confettiKey.currentState?.fire();
+    Fx.roundWin();
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
@@ -203,6 +210,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       });
       Future.delayed(const Duration(milliseconds: 1000), () {
         if (!mounted) return;
+        Fx.lose();
         setState(() => _showGameOver = true);
       });
     } else {
@@ -224,6 +232,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
 
   void _soloHint() {
     if (_hints <= 0 || _phase != _Phase.play) return;
+    Fx.hint();
     setState(() {
       _hints--;
       _hintRevealed.addAll(_target.where((i) => !_found.contains(i)));
@@ -261,6 +270,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     if (_phase != _Phase.play || _found.contains(i)) return;
     setState(() => _phase = _Phase.resolving);
     if (_target.contains(i)) {
+      Fx.correct();
       setState(() {
         _found.add(i);
         _duelScores[_current]++;
@@ -271,6 +281,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         Future.delayed(const Duration(milliseconds: 650), _switchTurn);
       }
     } else {
+      Fx.wrong();
       setState(() => _wrongIndex = i);
       Future.delayed(const Duration(milliseconds: 650), () {
         if (!mounted) return;
@@ -282,6 +293,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
 
   void _switchTurn() {
     if (!mounted) return;
+    Fx.turn();
     setState(() {
       _current = 1 - _current;
       _phase = _Phase.play;
@@ -292,6 +304,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
 
   void _duelHint() {
     if (_phase != _Phase.play) return;
+    Fx.hint();
     final savedCurrent = _current;
     setState(() {
       _hintRevealed.addAll(_target.where((i) => !_found.contains(i)));
@@ -314,6 +327,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     if (!mounted) return;
     setState(() => _phase = _Phase.over);
     _confettiKey.currentState?.fire();
+    Fx.win();
     setState(() => _showGameOver = true);
   }
 
@@ -708,7 +722,10 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                   ),
                 const SizedBox(height: 26),
                 GestureDetector(
-                  onTap: _playAgain,
+                  onTap: () {
+                    Fx.tap();
+                    _playAgain();
+                  },
                   child: Container(
                     width: double.infinity,
                     constraints: const BoxConstraints(maxWidth: 340),
@@ -728,7 +745,10 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                 ),
                 const SizedBox(height: 16),
                 GestureDetector(
-                  onTap: _quitToHome,
+                  onTap: () {
+                    Fx.tap();
+                    _quitToHome();
+                  },
                   child: Text(t.backHome, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70)),
                 ),
               ],

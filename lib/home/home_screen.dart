@@ -12,6 +12,7 @@ import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
 import '../games/snakes_and_ladders/snl_screen.dart';
 import '../games/thank_you/thank_you_screen.dart';
+import 'settings_sheet.dart';
 
 /// The launcher / home screen — built to the Figma frame "Home - L0"
 /// (MilkeKhelo-Design, node 6:159, 360×720).
@@ -109,9 +110,7 @@ class _HomeHeader extends StatelessWidget {
             width: 72,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _MenuButton(onTap: () {
-                // TODO: menu (Policy etc.) — not part of the Home - L0 frame.
-              }),
+              child: _MenuButton(onTap: () => showSettingsSheet(context)),
             ),
           ),
           const Expanded(child: SizedBox(height: 32)),

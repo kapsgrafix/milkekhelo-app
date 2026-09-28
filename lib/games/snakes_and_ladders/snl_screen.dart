@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -104,15 +105,18 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   void _runCountdown() {
     _countdownTick = 3;
+    Fx.countdown();
     _countdownTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
       final next = _countdownTick - 1;
       if (next <= 0) {
         timer.cancel();
         if (!mounted) return;
+        Fx.goSignal();
         setState(() => _showCountdown = false);
         _startMatchTimer();
       } else {
         if (!mounted) return;
+        Fx.countdown();
         setState(() => _countdownTick = next);
       }
     });
@@ -122,6 +126,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     _matchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() => _timeLeft--);
+      if (_timeLeft > 0 && _timeLeft <= 10) Fx.timerTick();
       if (_timeLeft <= 20 && !_blinkCtrl.isAnimating) {
         _blinkCtrl.repeat(reverse: true);
       }
@@ -140,6 +145,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _rolling = true;
       _busy = true;
     });
+    Fx.diceRoll();
     _diceShakeCtrl.repeat(reverse: true);
     int ticks = 0;
     _diceShuffleTimer = Timer.periodic(const Duration(milliseconds: 80), (timer) {
@@ -151,6 +157,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
           ..reset();
         final value = _rng.nextInt(6) + 1;
         if (!mounted) return;
+        Fx.diceLand();
         setState(() {
           _diceValue = value;
           _rolling = false;
@@ -163,6 +170,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
         });
       } else {
         if (!mounted) return;
+        Fx.diceTick();
         setState(() => _diceValue = _rng.nextInt(6) + 1);
       }
     });
@@ -183,6 +191,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     while (current < target) {
       current++;
       if (!mounted) return;
+      Fx.step();
       setState(() => _pos[color] = current);
       if (current < target) {
         await Future.delayed(const Duration(milliseconds: 200));
@@ -191,12 +200,14 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     }
 
     if (SnlData.snakes.containsKey(current)) {
+      Fx.snake();
       setState(() => _msgKind = _MsgKind.snakeBite);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
       setState(() => _pos[color] = SnlData.snakes[current]!);
       _finishTurn();
     } else if (SnlData.ladders.containsKey(current)) {
+      Fx.ladder();
       setState(() => _msgKind = _MsgKind.ladderUp);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
@@ -214,6 +225,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   void _finishTurn() {
     if (_gameOver || !mounted) return;
+    Fx.turn();
     setState(() {
       _turn = _turn == 'yellow' ? 'red' : 'yellow';
       _busy = false;
@@ -241,6 +253,11 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     });
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
+    if (finalWinner != null) {
+      Fx.win();
+    } else {
+      Fx.lose(); // draw
+    }
     setState(() => _showEndScreen = true);
   }
 
@@ -527,7 +544,10 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 16),
               GestureDetector(
-                onTap: _exit,
+                onTap: () {
+                  Fx.tap();
+                  _exit();
+                },
                 child: Text(
                   t.backToHome,
                   style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70),
