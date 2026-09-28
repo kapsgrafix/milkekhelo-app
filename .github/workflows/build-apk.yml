@@ -29,6 +29,12 @@ jobs:
 
       - run: flutter pub get
 
+      - name: Generate app icon
+        run: dart run flutter_launcher_icons
+
+      - name: Set app name shown under the icon
+        run: sed -i 's/android:label="[^"]*"/android:label="MilkeKhelo"/' android/app/src/main/AndroidManifest.xml
+
       - run: flutter build apk --release
 
       - uses: actions/upload-artifact@v4
