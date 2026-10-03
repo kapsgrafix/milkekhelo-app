@@ -19,6 +19,34 @@ class SnlText {
   String get draw => _hi ? 'बराबरी!' : "It's a Draw!";
   String get howTitle => _hi ? 'कैसे खेलें' : 'How to Play';
   String get goalTitle => _hi ? '🎯 खेल का मकसद' : '🎯 Goal of the Game';
+  // Mode select (Figma "SnL Home").
+  String get classic => _hi ? 'क्लासिक' : 'Classic';
+  String get classicSub => _hi ? 'जो पहले पहुंचे, वो जीते!' : 'First to finish wins!';
+  String get timer => _hi ? 'टाइमर' : 'Timer';
+  String get timerSub => _hi ? '2 मिनट। सबसे आगे वाला जीते!' : '2 minutes. Furthest ahead wins!';
+
+  String goalTextFor(bool timed) => timed ? goalText : classicGoalText;
+  String get classicGoalText => _hi
+      ? 'सबसे पहले खाना 100 पर पहुंचो — वही जीतेगा!'
+      : 'Be the first to reach square 100 — that player wins!';
+
+  List<List<String>> stepsFor(bool timed) => timed ? steps : classicSteps;
+  List<List<String>> get classicSteps => _hi
+      ? const [
+          ['दो खिलाड़ी', 'पीला और लाल बारी-बारी खेलें। हाईलाइट खिलाड़ी पासा फेंके।'],
+          ['पासा दबाएं', 'पासा दबाओ, गोटी उतने खाने आगे बढ़ेगी।'],
+          ['सीढ़ी ऊपर 🪜', 'सीढ़ी के नीचे पहुंचो और सीधे ऊपर चढ़ो!'],
+          ['साँप नीचे 🐍', 'साँप के मुंह पर पहुंचे तो पूंछ तक नीचे।'],
+          ['100 पर जीत', 'कोई टाइमर नहीं — जो पहले 100 पर पहुंचे, वही जीते!'],
+        ]
+      : const [
+          ['Two Players', 'Yellow and Red take turns. The highlighted player rolls.'],
+          ['Tap the Dice', 'Tap the dice to roll. Your goti moves that many squares.'],
+          ["Ladders Up 🪜", "Land at a ladder's base and climb straight up!"],
+          ['Snakes Down 🐍', "Land on a snake's head and slide down to its tail."],
+          ['Race to 100', 'No timer — the first player to reach 100 wins!'],
+        ];
+
   String get goalText => _hi
       ? '2 मिनट में सबसे ज़्यादा अंक बनाओ। हर खाना = 2 अंक!'
       : 'Score the most points before the 2-minute timer runs out. Each square = 2 points!';

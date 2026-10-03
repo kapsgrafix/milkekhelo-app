@@ -23,7 +23,20 @@ enum _MsgKind { turn, rolled, snakeBite, ladderUp, reached100 }
 /// module folder; nothing outside `games/snakes_and_ladders/` references
 /// its internals.
 class SnlScreen extends StatefulWidget {
-  const SnlScreen({super.key});
+  /// true = Timer mode (2-minute match, Figma "SnL Timed Game Table");
+  /// false = Classic mode (no timer, first to 100 wins, "SnL Classic Game Table").
+  final bool timed;
+  const SnlScreen({super.key, this.timed = true});
+
+  /// Opens this game's how-to-play sheet (also used by the mode-select page).
+  static void showHowToPlay(BuildContext context, SnlText t, {required bool timed}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _HowToPlaySheet(t: t, timed: timed),
+    );
+  }
 
   @override
   State<SnlScreen> createState() => _SnlScreenState();
@@ -114,7 +127,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
         if (!mounted) return;
         Fx.goSignal();
         setState(() => _showCountdown = false);
-        _startMatchTimer();
+        if (widget.timed) _startMatchTimer();
       } else {
         if (!mounted) return;
         Fx.countdown();
@@ -270,18 +283,12 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   void _exit() => Navigator.of(context).pop();
 
-  void _openHow(SnlText t) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => _HowToPlaySheet(t: t),
-    );
-  }
+  void _openHow(SnlText t) => SnlScreen.showHowToPlay(context, t, timed: widget.timed);
 
   // ---- Build ---------------------------------------------------------------
   //
-  // Layout follows Figma "SnL Timed Game Table" (14:1337, 360×720):
+  // Layout follows Figma "SnL Timed Game Table" (14:1337) and, without the
+  // timer, "SnL Classic Game Table" (8:253), both 360×720:
   //   0    Header (Game Empty — back + help, no title, language toggle)  56
   //   56   Score Section (two player chips)                             71
   //   162  Timer "02:00" (stat/number, action/primary)                  34
@@ -402,19 +409,24 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
         return Column(
           children: [
             const Spacer(flex: 35),
-            AnimatedBuilder(
-              animation: _blinkCtrl,
-              builder: (context, child) {
-                final opacity = _urgent ? (1 - _blinkCtrl.value * 0.6) : 1.0;
-                return Opacity(
-                  opacity: opacity,
-                  child: Text(
-                    timeStr,
-                    style: AppText.statNumber(color: _urgent ? const Color(0xFFF87171) : AppColors.actionPrimary),
-                  ),
-                );
-              },
-            ),
+            // Classic has no timer; an empty slot of the same height keeps
+            // the board exactly where both Figma frames put it (y = 208).
+            if (widget.timed)
+              AnimatedBuilder(
+                animation: _blinkCtrl,
+                builder: (context, child) {
+                  final opacity = _urgent ? (1 - _blinkCtrl.value * 0.6) : 1.0;
+                  return Opacity(
+                    opacity: opacity,
+                    child: Text(
+                      timeStr,
+                      style: AppText.statNumber(color: _urgent ? const Color(0xFFF87171) : AppColors.actionPrimary),
+                    ),
+                  );
+                },
+              )
+            else
+              const SizedBox(height: 33.6),
             const SizedBox(height: 12),
             SizedBox.square(
               dimension: boardSize,
@@ -570,7 +582,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
 class _HowToPlaySheet extends StatelessWidget {
   final SnlText t;
-  const _HowToPlaySheet({required this.t});
+  final bool timed;
+  const _HowToPlaySheet({required this.t, required this.timed});
 
   @override
   Widget build(BuildContext context) {
@@ -599,9 +612,9 @@ class _HowToPlaySheet extends StatelessWidget {
             ),
             Text(t.howTitle, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: SnlData.howAccent)),
             const SizedBox(height: 20),
-            for (int i = 0; i < t.steps.length; i++) ...[
-              _Step(number: i + 1, title: t.steps[i][0], desc: t.steps[i][1]),
-              if (i != t.steps.length - 1) const SizedBox(height: 16),
+            for (int i = 0; i < t.stepsFor(timed).length; i++) ...[
+              _Step(number: i + 1, title: t.stepsFor(timed)[i][0], desc: t.stepsFor(timed)[i][1]),
+              if (i != t.stepsFor(timed).length - 1) const SizedBox(height: 16),
             ],
             const SizedBox(height: 20),
             Container(
@@ -616,7 +629,7 @@ class _HowToPlaySheet extends StatelessWidget {
                 children: [
                   Text(t.goalTitle, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text(t.goalText, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
+                  Text(t.goalTextFor(timed), style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
                 ],
               ),
             ),

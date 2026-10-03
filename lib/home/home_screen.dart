@@ -14,7 +14,7 @@ import '../core/widgets/pressable_card.dart';
 import '../core/widgets/screen_bottom_bar.dart';
 import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
-import '../games/snakes_and_ladders/snl_screen.dart';
+import '../games/snakes_and_ladders/snl_home_screen.dart';
 import '../games/thank_you/thank_you_screen.dart';
 import 'settings_sheet.dart';
 
@@ -277,7 +277,7 @@ class _GameGrid extends StatelessWidget {
         imageSize: 120,
         faceHeight: 148,
         label: isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
-        onTap: () => _push(context, const SnlScreen()),
+        onTap: () => _push(context, const SnlHomeScreen()),
       ),
       _GameModuleCard(
         index: 1,
