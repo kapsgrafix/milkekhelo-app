@@ -222,7 +222,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       Fx.noMoves();
       _heart.forward(from: 0);
       setState(() {
-        _lives = max(0, _lives - 1);
+        _lives = _lives > 0 ? _lives - 1 : 0;
         _showBanner(BjText(AppLanguage.instance.value).noSpace, edge: const Color(0xFF8A1030));
       });
       if (_lives > 0) {
@@ -294,7 +294,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       _spawnClear(cleared, lines, origin, piece.color);
       _combo += 1;
       _movesSinceClear = 0;
-      var pts = BjData.linePoints(lines.count) * max(1, _combo);
+      int pts = BjData.linePoints(lines.count) * (_combo < 1 ? 1 : _combo);
       final allClear = _board.isEmpty;
       if (allClear) pts += BjData.allClearBonus;
       gained += pts;
