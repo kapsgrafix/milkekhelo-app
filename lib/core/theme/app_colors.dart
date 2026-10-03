@@ -76,6 +76,13 @@ class AppColors {
     shadow: Color(0xFF702B11),
   );
 
+  /// Blocks Jodo — Figma "Home - L0 Final - Phase 2" gives it the purple card.
+  static const blocksJodo = GameCardPalette(
+    top: Color(0xFFC3B0F5),
+    bottom: Color(0xFF6A4FC2),
+    shadow: Color(0xFF3A2B6B),
+  );
+
   static const Color goldAccent = Color(0xFFFFD700);
 }
 

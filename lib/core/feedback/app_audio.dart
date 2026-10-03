@@ -25,7 +25,16 @@ enum Sfx {
   roundWin('round_win', 0.8, 1),
   hint('hint', 0.65, 1),
   win('win', 0.9, 1),
-  lose('lose', 0.8, 1);
+  lose('lose', 0.8, 1),
+  // Blocks Jodo
+  blockPick('block_pick', 0.55, 2),
+  blockPlace('block_place', 0.8, 3),
+  blockInvalid('block_invalid', 0.6, 2),
+  lineClear('line_clear', 0.8, 2),
+  lineClearMulti('line_clear_multi', 0.9, 1),
+  combo('combo', 0.75, 1),
+  refill('refill', 0.55, 1),
+  noMoves('no_moves', 0.8, 1);
 
   const Sfx(this.fileName, this.volume, this.voices);
 

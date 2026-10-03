@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,25 +13,29 @@ import '../core/widgets/game_header.dart';
 import '../core/widgets/heartbeat.dart';
 import '../core/widgets/language_toggle.dart';
 import '../core/widgets/pressable_card.dart';
-import '../core/widgets/screen_bottom_bar.dart';
+import '../games/blocks_jodo/blocks_jodo_screen.dart';
 import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
 import '../games/snakes_and_ladders/snl_home_screen.dart';
 import '../games/thank_you/thank_you_screen.dart';
 import 'settings_sheet.dart';
 
-/// The launcher / home screen — built to the Figma frame "Home - L0"
-/// "Home - L0 Final EN" (MilkeKhelo-Design, node 236:968, 360×720).
+/// The launcher / home screen — Figma "Home - L0 Final - Phase 2"
+/// (MilkeKhelo-Design, node 318:2044, 360×720).
 ///
 /// Figma layout (y from frame top):
-///   0   Header (12px padding, 32px controls)          → 56 tall
-///   156 Logo lockup (wordmark / heart divider / tagline) → 74 tall
-///   308 2×2 game cards (152×148 / 152×152, gap 16×22, 6px ledge)
-///   670 Bottom bar (50px, background/surface)
+///   0    Header (12px padding, 32px controls)                    56
+///   0    Top glow panel (radial, centred on its bottom edge)    280
+///   120  Logo lockup (wordmark / heart divider / tagline)        74
+///   310  "Most Popular Games" — Memory Grid · Snakes & Ladders
+///        (155×148 cards, gap 10, radius 24, 6px ledge)
+///   515  "More Games" — My First · Thank You · Block Jodo
+///        (100×100 cards, gap 10, radius 16, 6px ledge)
+///   648  …72px clear space to the bottom (no bottom bar in this frame)
 ///
-/// The vertical gaps (100 / 78 / 34) are flex spacers so the layout is
-/// pixel-exact on a 720pt-tall screen and scales proportionally on taller
-/// or shorter phones. If a screen is too short, the content scrolls.
+/// As in Figma the logo is pinned to the top and the card sections to the
+/// bottom; the gap between them flexes with the screen height. If a screen
+/// is too short, the content scrolls.
 ///
 /// This screen holds no game logic — each card just pushes that game's route.
 const Color _homeBgEdge = Color(0xFF000E3A);
@@ -39,19 +45,20 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFF232B52), // surface over the gradient's edge
+        systemNavigationBarColor: _homeBgEdge,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
         backgroundColor: _homeBgEdge,
         body: DecoratedBox(
-          // Figma "Home - L0 Final": radial blue glow centred at (180, 451.5)
-          // of the 360×720 frame, radius ≈ 273, fading to deep navy.
+          // Figma: radial blue glow centred at (180, 451.5) of the 360×720
+          // frame, radius ≈ 273, fading to deep navy.
           decoration: const BoxDecoration(
             gradient: RadialGradient(
               center: Alignment(0, 451.5 / 360 - 1),
@@ -60,23 +67,69 @@ class HomeScreen extends StatelessWidget {
               stops: [0, 0.5, 0.75, 1],
             ),
           ),
-          child: ValueListenableBuilder<AppLang>(
-            valueListenable: AppLanguage.instance,
-            builder: (context, lang, _) {
-              final isHi = lang == AppLang.hi;
-              return Column(
-                children: [
-                  const SafeArea(bottom: false, child: _HomeHeader()),
-                  Expanded(child: _HomeBody(isHi: isHi)),
-                  const ScreenBottomBar(),
-                ],
-              );
-            },
+          child: Stack(
+            children: [
+              // Figma "Rectangle 34624640": 360×280 panel behind the logo.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 280 + topInset,
+                child: const CustomPaint(painter: _TopGlowPainter()),
+              ),
+              ValueListenableBuilder<AppLang>(
+                valueListenable: AppLanguage.instance,
+                builder: (context, lang, _) {
+                  final isHi = lang == AppLang.hi;
+                  return Column(
+                    children: [
+                      const SafeArea(bottom: false, child: _HomeHeader()),
+                      Expanded(child: _HomeBody(isHi: isHi)),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// The top panel's radial gradient: centred on the panel's bottom edge,
+/// 180 × 162.4 radii (Figma gradientTransform), same blue → navy stops.
+class _TopGlowPainter extends CustomPainter {
+  const _TopGlowPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final center = Offset(size.width / 2, size.height);
+    final rx = size.width / 2;
+    const ry = 162.4;
+    // Squash the circle vertically about its centre (column-major 4×4).
+    final k = ry / rx;
+    final m = Float64List.fromList([
+      1, 0, 0, 0, //
+      0, k, 0, 0, //
+      0, 0, 1, 0, //
+      0, center.dy * (1 - k), 0, 1,
+    ]);
+    final paint = Paint()
+      ..shader = ui.Gradient.radial(
+        center,
+        rx,
+        const [Color(0xFF0026A0), Color(0xFF001A6D), Color(0xFF001453), _homeBgEdge],
+        const [0, 0.5, 0.75, 1],
+        ui.TileMode.clamp,
+        m,
+      );
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ───────────────────────────── Body ─────────────────────────────
@@ -96,11 +149,12 @@ class _HomeBody extends StatelessWidget {
             child: IntrinsicHeight(
               child: Column(
                 children: [
-                  const Spacer(flex: 100),
+                  const SizedBox(height: 64),
                   _LogoLockup(isHi: isHi),
-                  const Spacer(flex: 78),
-                  _GameGrid(isHi: isHi),
-                  const Spacer(flex: 34),
+                  const SizedBox(height: 24),
+                  const Spacer(),
+                  _GameSections(isHi: isHi),
+                  const SizedBox(height: 72),
                 ],
               ),
             ),
@@ -234,14 +288,11 @@ class _HeartDividerPainter extends CustomPainter {
 
 // ───────────────────────────── Cards ────────────────────────────
 
-class _GameGrid extends StatelessWidget {
+class _GameSections extends StatelessWidget {
   final bool isHi;
-  const _GameGrid({required this.isHi});
+  const _GameSections({required this.isHi});
 
-  static const double _colGap = 16;
-  // Figma row gap is 22 measured card-to-card; each cell already includes
-  // the 6px shadow ledge, so the visible gap between cells is 22 - 6.
-  static const double _rowGap = 22 - _GameModuleCard.ledge;
+  static const double _gap = 10;
 
   static bool _precached = false;
 
@@ -250,7 +301,7 @@ class _GameGrid extends StatelessWidget {
   static void _precacheBothLanguages(BuildContext context) {
     if (_precached) return;
     _precached = true;
-    for (final g in const ['snl', 'memory_grid', 'my_first', 'thank_you']) {
+    for (final g in const ['snl', 'memory_grid', 'my_first', 'thank_you', 'blocks_jodo']) {
       for (final l in const ['en', 'hi']) {
         precacheImage(AssetImage('assets/home/card_${g}_$l.webp'), context);
       }
@@ -262,61 +313,102 @@ class _GameGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Figma "Home - L0 Final EN": row 1 cards are 152×148, row 2 are
-    // 152×152; art is 120px (Thank You 124px), centred on the card face.
-    // The game names are part of the artwork (English / Hindi versions).
     // Card art is language-specific (the game name is part of the picture).
     // Lossless WebP — pixel-identical to the supplied PNGs.
     final lang = isHi ? 'hi' : 'en';
     _precacheBothLanguages(context);
-    final cards = [
-      _GameModuleCard(
-        index: 0,
-        palette: AppColors.snakesAndLadders,
-        image: 'assets/home/card_snl_$lang.webp',
-        imageSize: 120,
-        faceHeight: 148,
-        label: isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
-        onTap: () => _push(context, const SnlHomeScreen()),
-      ),
-      _GameModuleCard(
-        index: 1,
-        palette: AppColors.memoryGrid,
-        image: 'assets/home/card_memory_grid_$lang.webp',
-        imageSize: 120,
-        faceHeight: 148,
-        label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
-        onTap: () => _push(context, const MemoryGridHomeScreen()),
-      ),
-      _GameModuleCard(
-        index: 2,
-        palette: AppColors.first,
-        image: 'assets/home/card_my_first_$lang.webp',
-        imageSize: 120,
-        faceHeight: 152,
-        label: isHi ? 'मेरा पहला' : 'My First',
-        onTap: () => _push(context, const FirstScreen()),
-      ),
-      _GameModuleCard(
-        index: 3,
-        palette: AppColors.thankYou,
-        image: 'assets/home/card_thank_you_$lang.webp',
-        imageSize: 124,
-        faceHeight: 152,
-        label: isHi ? 'धन्यवाद' : 'Thank You',
-        onTap: () => _push(context, const ThankYouScreen()),
-      ),
-    ];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [Expanded(child: cards[0]), const SizedBox(width: _colGap), Expanded(child: cards[1])]),
-            const SizedBox(height: _rowGap),
-            Row(children: [Expanded(child: cards[2]), const SizedBox(width: _colGap), Expanded(child: cards[3])]),
+            _SectionTitle(isHi ? 'सबसे लोकप्रिय खेल' : 'Most Popular Games'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                // Figma: art 122.4px on a 155px card (78.9%), 14px from top.
+                Expanded(
+                  child: _GameModuleCard(
+                    index: 0,
+                    palette: AppColors.memoryGrid,
+                    image: 'assets/home/card_memory_grid_$lang.webp',
+                    faceHeight: 148,
+                    radius: 24,
+                    artFraction: 122.37 / 155,
+                    artTop: 14,
+                    label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
+                    onTap: () => _push(context, const MemoryGridHomeScreen()),
+                  ),
+                ),
+                const SizedBox(width: _gap),
+                // Figma: art 130px on a 155px card (83.9%), 9px from top.
+                Expanded(
+                  child: _GameModuleCard(
+                    index: 1,
+                    palette: AppColors.snakesAndLadders,
+                    image: 'assets/home/card_snl_$lang.webp',
+                    faceHeight: 148,
+                    radius: 24,
+                    artFraction: 130 / 155,
+                    artTop: 9,
+                    label: isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
+                    onTap: () => _push(context, const SnlHomeScreen()),
+                  ),
+                ),
+              ],
+            ),
+            // 24px between sections; the 6px ledge already sits in the row.
+            const SizedBox(height: 24 - _GameModuleCard.ledge),
+            _SectionTitle(isHi ? 'और खेल' : 'More Games'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                // Figma: 100×100 cards, 88px art inset 6px.
+                Expanded(
+                  child: _GameModuleCard(
+                    index: 2,
+                    palette: AppColors.first,
+                    image: 'assets/home/card_my_first_$lang.webp',
+                    faceHeight: 100,
+                    radius: 16,
+                    artSize: 88,
+                    artTop: 6,
+                    label: isHi ? 'मेरा पहला' : 'My First',
+                    onTap: () => _push(context, const FirstScreen()),
+                  ),
+                ),
+                const SizedBox(width: _gap),
+                Expanded(
+                  child: _GameModuleCard(
+                    index: 3,
+                    palette: AppColors.thankYou,
+                    image: 'assets/home/card_thank_you_$lang.webp',
+                    faceHeight: 100,
+                    radius: 16,
+                    artSize: 88,
+                    artTop: 6,
+                    label: isHi ? 'धन्यवाद' : 'Thank You',
+                    onTap: () => _push(context, const ThankYouScreen()),
+                  ),
+                ),
+                const SizedBox(width: _gap),
+                Expanded(
+                  child: _GameModuleCard(
+                    index: 4,
+                    palette: AppColors.blocksJodo,
+                    image: 'assets/home/card_blocks_jodo_$lang.webp',
+                    faceHeight: 100,
+                    radius: 16,
+                    artSize: 88,
+                    artTop: 7,
+                    label: isHi ? 'ब्लॉक जोड़ो' : 'Block Jodo',
+                    onTap: () => _push(context, const BlocksJodoScreen()),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -324,34 +416,56 @@ class _GameGrid extends StatelessWidget {
   }
 }
 
-/// Figma "Home - L0 Final" game card: gradient face, radius 24, 6px solid
-/// ledge, game artwork (with its name baked in) centred on the face.
+/// Figma "Section Divider": SemiBold 16, text/primary, left-aligned.
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w600, height: 25 / 16),
+    );
+  }
+}
+
+/// Figma Phase 2 game card: gradient face, 6px solid ledge, game artwork
+/// (with its name baked in) centred horizontally at a fixed top inset.
 /// Pressed = 18% black overlay plus the shared 3px press-down.
-/// A diagonal light sweep ([_CardShimmer]) passes over each card at
-/// random intervals so the screen feels alive.
+/// Every card pulses ([Heartbeat], staggered) and a diagonal light sweep
+/// ([_CardShimmer]) passes over it at random intervals.
 class _GameModuleCard extends StatelessWidget {
   static const double ledge = 6;
 
+  final int index;
   final GameCardPalette palette;
   final String image;
-  final double imageSize;
   final double faceHeight;
+  final double radius;
+
+  /// Art width as a fraction of the card width (big cards scale with the
+  /// screen) — or a fixed [artSize] (small cards).
+  final double? artFraction;
+  final double? artSize;
+  final double artTop;
   final String label;
   final VoidCallback onTap;
-
-  /// Position in the grid (0–3); staggers the heartbeat so the cards pulse
-  /// one after another.
-  final int index;
 
   const _GameModuleCard({
     required this.index,
     required this.palette,
     required this.image,
-    required this.imageSize,
     required this.faceHeight,
+    required this.radius,
+    this.artFraction,
+    this.artSize,
+    required this.artTop,
     required this.label,
     required this.onTap,
-  });
+  }) : assert(artFraction != null || artSize != null);
 
   @override
   Widget build(BuildContext context) {
@@ -361,32 +475,42 @@ class _GameModuleCard extends StatelessWidget {
       child: Heartbeat(
         delay: Duration(milliseconds: 220 * index),
         child: SizedBox(
-        height: faceHeight + ledge,
-        child: PressableCard(
-          topColor: palette.top,
-          bottomColor: palette.bottom,
-          shadowColor: palette.shadow,
-          borderRadius: 24,
-          shadowOffset: ledge,
-          pressedOverlayColor: const Color(0x2E000000), // 18% black
-          onTap: onTap,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Center(
-                child: Image.asset(
-                  image,
-                  width: imageSize,
-                  height: imageSize,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                ),
-              ),
-              const _CardShimmer(radius: 24),
-            ],
+          height: faceHeight + ledge,
+          child: PressableCard(
+            topColor: palette.top,
+            bottomColor: palette.bottom,
+            shadowColor: palette.shadow,
+            borderRadius: radius,
+            shadowOffset: ledge,
+            pressedOverlayColor: const Color(0x2E000000), // 18% black
+            onTap: onTap,
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final size = min(artSize ?? c.maxWidth * artFraction!, faceHeight - artTop);
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Positioned(
+                      top: artTop,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Image.asset(
+                          image,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
+                    ),
+                    _CardShimmer(radius: radius),
+                  ],
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }

@@ -73,6 +73,37 @@ class Fx {
     _pattern(const [_Haptic.medium, _Haptic.light], 100);
   }
 
+  // ---- Block puzzle (Blocks Jodo) ------------------------------------------
+  static void blockPick() => _go(Sfx.blockPick, _Haptic.selection);
+  static void blockPlace() => _go(Sfx.blockPlace, _Haptic.light);
+  static void blockInvalid() => _go(Sfx.blockInvalid, _Haptic.selection);
+
+  /// [lines] cleared at once — bigger clears get a bigger sound and a
+  /// stronger rumble.
+  static void lineClear(int lines) {
+    if (lines >= 2) {
+      _audio.play(Sfx.lineClearMulti);
+      _pattern([_Haptic.heavy, for (var i = 1; i < (lines > 5 ? 5 : lines); i++) _Haptic.medium], 70);
+    } else {
+      _audio.play(Sfx.lineClear);
+      _pattern(const [_Haptic.medium, _Haptic.light], 80);
+    }
+  }
+
+  static void combo() {
+    _audio.play(Sfx.combo);
+    _pattern(const [_Haptic.light, _Haptic.medium, _Haptic.heavy], 60);
+  }
+
+  /// Haptic-only tick when a dragged block first lines up to clear a line.
+  static void lineReady() => _haptic(_Haptic.selection);
+
+  static void refill() => _go(Sfx.refill, _Haptic.light);
+  static void noMoves() {
+    _audio.play(Sfx.noMoves);
+    _pattern(const [_Haptic.heavy, _Haptic.heavy], 150);
+  }
+
   // ---- Game over -------------------------------------------------------------
   static void win() {
     _audio.duckMusic();

@@ -5,7 +5,7 @@ import 'core/feedback/app_audio.dart';
 import 'core/feedback/feedback_settings.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_text_styles.dart';
-import 'home/home_screen.dart';
+import 'splash/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ Future<void> main() async {
 }
 
 /// Root widget. Deliberately thin: it just sets up the MaterialApp shell and
-/// hands off to [HomeScreen] — all game logic lives inside games/<name>/.
+/// hands off to [SplashScreen] (BinnyTechLabs) → [HomeScreen] — all game logic lives inside games/<name>/.
 class MilKeKheloApp extends StatefulWidget {
   const MilKeKheloApp({super.key});
 
@@ -69,7 +69,7 @@ class _MilKeKheloAppState extends State<MilKeKheloApp> with WidgetsBindingObserv
           brightness: Brightness.dark,
         ),
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
