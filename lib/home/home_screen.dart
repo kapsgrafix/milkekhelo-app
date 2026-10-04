@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,11 +7,11 @@ import 'package:flutter/services.dart';
 import '../core/localization/app_language.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/widgets/chunky_button.dart';
 import '../core/widgets/game_header.dart';
 import '../core/widgets/heartbeat.dart';
 import '../core/widgets/language_toggle.dart';
 import '../core/widgets/pressable_card.dart';
-import '../core/widgets/screen_bottom_bar.dart';
 import '../games/blocks_jodo/blocks_jodo_screen.dart';
 import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
@@ -22,39 +20,38 @@ import '../games/thank_you/thank_you_screen.dart';
 import '../games/whos_that/whos_that_screen.dart';
 import 'settings_sheet.dart';
 
-/// The launcher / home screen — Figma "Home - L0 Final - Phase 2"
-/// (MilkeKhelo-Design, node 318:2044, 360×720).
+/// The launcher / home screen — Figma "Home - L0 Final - Phase 3"
+/// (MilkeKhelo-Design, node 348:2469, 360×720).
 ///
-/// Figma layout (y from frame top):
-///   0    Header (12px padding, 32px controls)                    56
-///   0    Top glow panel (radial, centred on its bottom edge)    276
-///   130  Logo lockup (wordmark / heart divider / tagline)        74
-///   300  "Most Popular Games" — Memory Grid · Who's That?
+/// Figma layout (y from frame top, content 320 wide at x 20):
+///   0    Header (Type=Logo): menu · centred 136px wordmark · language   56
+///   68   Featured banner 320×264, radius 24: block-art background,
+///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
+///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
+///        (100×100 cards, gap 8, radius 16, 6px ledge)
+///   513  "Classic Games" — Snakes & Ladders · Memory Grid
 ///        (155×148 cards, gap 10, radius 24, 6px ledge)
-///   505  "More Games" — My First · Snakes & Ladders · Block Jodo ·
-///        Thank You (100×100 cards, gap 8, radius 16, 6px ledge),
-///        scrolls sideways
-///   638  …32px to the 50px bottom bar (670)
-///
-/// The sections start right under the banner (y 300) on every screen size;
-/// any extra height on tall phones is left below them. If a screen is too
-/// short, the content scrolls.
+///        32px bottom padding · 50px bottom bar (#252F55)
+/// The content runs past the bottom bar in Figma, so it scrolls.
 ///
 /// This screen holds no game logic — each card just pushes that game's route.
 const Color _homeBgEdge = Color(0xFF000E3A);
+const Color _homeBottomBar = Color(0xFF252F55);
+
+void _push(BuildContext context, Widget screen) =>
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: _homeBgEdge,
+        systemNavigationBarColor: _homeBottomBar,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
@@ -70,28 +67,127 @@ class HomeScreen extends StatelessWidget {
               stops: [0, 0.5, 0.75, 1],
             ),
           ),
-          child: Stack(
+          child: ValueListenableBuilder<AppLang>(
+            valueListenable: AppLanguage.instance,
+            builder: (context, lang, _) {
+              final isHi = lang == AppLang.hi;
+              return Column(
+                children: [
+                  const SafeArea(bottom: false, child: _HomeHeader()),
+                  Expanded(child: _HomeBody(isHi: isHi)),
+                  // Figma "Rectangle 34624632": 50px bar, #252F55.
+                  Container(
+                    width: double.infinity,
+                    height: 50 + MediaQuery.paddingOf(context).bottom,
+                    color: _homeBottomBar,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────────────────── Body ─────────────────────────────
+
+class _HomeBody extends StatelessWidget {
+  final bool isHi;
+  const _HomeBody({required this.isHi});
+
+  static bool _precached = false;
+
+  /// Decode both language sets once, so switching EN ⇄ हिं swaps the card
+  /// art instantly with no blank frame.
+  static void _precacheAll(BuildContext context) {
+    if (_precached) return;
+    _precached = true;
+    precacheImage(const AssetImage('assets/home/banner_bg.webp'), context);
+    for (final g in const ['blocks_jodo', 'my_first', 'whos_that', 'thank_you', 'snl', 'memory_grid']) {
+      for (final l in const ['en', 'hi']) {
+        precacheImage(AssetImage('assets/home/card_${g}_$l.webp'), context);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Card art is language-specific (the game name is part of the picture).
+    // Lossless WebP — pixel-identical to the supplied PNGs.
+    final lang = isHi ? 'hi' : 'en';
+    _precacheAll(context);
+
+    Widget small(int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
+      // Figma: 100×100 card, radius 16, 84px art inset 8px.
+      return SizedBox(
+        width: 100,
+        child: _GameModuleCard(
+          index: index,
+          palette: palette,
+          image: 'assets/home/card_${game}_$lang.webp',
+          faceHeight: 100,
+          radius: 16,
+          artSize: 84,
+          artTop: 8,
+          label: label,
+          onTap: () => _push(context, screen()),
+        ),
+      );
+    }
+
+    Widget big(int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
+      // Figma: 155×148 card, radius 24, 120px art 14px from the top.
+      return Expanded(
+        child: _GameModuleCard(
+          index: index,
+          palette: palette,
+          image: 'assets/home/card_${game}_$lang.webp',
+          faceHeight: 148,
+          radius: 24,
+          artSize: 120,
+          artTop: 14,
+          label: label,
+          onTap: () => _push(context, screen()),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32 - _GameModuleCard.ledge),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Figma "Rectangle 34624640": 360×276 panel behind the logo.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 276 + topInset,
-                child: const CustomPaint(painter: _TopGlowPainter()),
+              _FeaturedBanner(isHi: isHi),
+              const SizedBox(height: 24),
+              _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  small(0, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
+                  const SizedBox(width: 8),
+                  small(1, AppColors.snakesAndLadders /* module/pink */, 'whos_that', isHi ? 'पहचान कौन' : "Who's That?",
+                      () => const WhosThatScreen()),
+                  const SizedBox(width: 8),
+                  small(2, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
+                ],
               ),
-              ValueListenableBuilder<AppLang>(
-                valueListenable: AppLanguage.instance,
-                builder: (context, lang, _) {
-                  final isHi = lang == AppLang.hi;
-                  return Column(
-                    children: [
-                      const SafeArea(bottom: false, child: _HomeHeader()),
-                      Expanded(child: _HomeBody(isHi: isHi)),
-                      const ScreenBottomBar(),
-                    ],
-                  );
-                },
+              // Figma: 24px from the card faces to the next section; the
+              // 6px ledge already sits inside the row.
+              const SizedBox(height: 24 - _GameModuleCard.ledge),
+              _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  big(3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders', () => const SnlHomeScreen()),
+                  const SizedBox(width: 10),
+                  big(4, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid', () => const MemoryGridHomeScreen()),
+                ],
               ),
             ],
           ),
@@ -101,75 +197,63 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// The top panel's radial gradient: centred on the panel's bottom edge,
-/// 180 × 160.08 radii (Figma gradientTransform), same blue → navy stops.
-class _TopGlowPainter extends CustomPainter {
-  const _TopGlowPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final center = Offset(size.width / 2, size.height);
-    final rx = size.width / 2;
-    const ry = 160.08;
-    // Squash the circle vertically about its centre (column-major 4×4).
-    final k = ry / rx;
-    final m = Float64List.fromList([
-      1, 0, 0, 0, //
-      0, k, 0, 0, //
-      0, 0, 1, 0, //
-      0, center.dy * (1 - k), 0, 1,
-    ]);
-    final paint = Paint()
-      ..shader = ui.Gradient.radial(
-        center,
-        rx,
-        const [Color(0xFF0026A0), Color(0xFF001A6D), Color(0xFF001453), _homeBgEdge],
-        const [0, 0.5, 0.75, 1],
-        ui.TileMode.clamp,
-        m,
-      );
-    canvas.drawRect(rect, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ───────────────────────────── Body ─────────────────────────────
-
-class _HomeBody extends StatelessWidget {
+/// Figma "Logo" frame (349:3597): 320×264 banner, radius 24, the block
+/// background art (cover), Block Jodo art 160×160 centred 24px from the
+/// top, and a 240px Primary "Play Now" button 192px from the top.
+class _FeaturedBanner extends StatelessWidget {
   final bool isHi;
-  const _HomeBody({required this.isHi});
+  const _FeaturedBanner({required this.isHi});
 
-  /// Figma: below the 56px header the banner area runs to y 300, where
-  /// the game sections start (logo at y 130).
-  static const double _bannerHeight = 300 - 56;
+  static const double height = 264;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const ClampingScrollPhysics(),
-      child: Column(
-        children: [
-          SizedBox(
-            height: _bannerHeight,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 130 - 56),
-                child: _LogoLockup(isHi: isHi),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/home/banner_bg.webp',
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+                excludeFromSemantics: true,
               ),
             ),
-          ),
-          // Sections sit right under the banner (top-aligned, as in Figma).
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: _GameSections(isHi: isHi),
-          ),
-          // Figma: 32px below the last card face (6 of it is the ledge).
-          const SizedBox(height: 32 - _GameModuleCard.ledge),
-        ],
+            Positioned(
+              top: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Heartbeat(
+                  child: Image.asset(
+                    'assets/home/card_blocks_jodo_${isHi ? 'hi' : 'en'}.webp',
+                    width: 160,
+                    height: 160,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    semanticLabel: isHi ? 'ब्लॉक जोड़ो' : 'Block Jodo',
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 192,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ChunkyButton(
+                  label: isHi ? 'अभी खेलें' : 'Play Now',
+                  width: 240,
+                  onTap: () => _push(context, const BlocksJodoScreen()),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -177,8 +261,8 @@ class _HomeBody extends StatelessWidget {
 
 // ──────────────────────────── Header ────────────────────────────
 
-/// Figma "Header / Type=Home": 12px padding, 72px left slot with the menu
-/// button, flexible centre, 72px language toggle on the right.
+/// Figma "Header / Type=Logo": 12px padding, 72px left slot with the menu
+/// button, the 136×18.9 wordmark centred, 72px language toggle on the right.
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
 
@@ -195,7 +279,21 @@ class _HomeHeader extends StatelessWidget {
               child: _MenuButton(onTap: () => showSettingsSheet(context)),
             ),
           ),
-          const Expanded(child: SizedBox(height: 32)),
+          Expanded(
+            child: SizedBox(
+              height: 32,
+              child: Center(
+                child: Image.asset(
+                  'assets/home/wordmark.webp',
+                  width: 136,
+                  height: 136 / 7.2, // 18.89 — Figma wordmark slot
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                  semanticLabel: 'milkekhelo.com',
+                ),
+              ),
+            ),
+          ),
           const LanguageToggle(),
         ],
       ),
@@ -230,195 +328,9 @@ class _MenuButton extends StatelessWidget {
   }
 }
 
-// ───────────────────────────── Logo ─────────────────────────────
-
-/// Figma "Logo with Tagline" (Background=Dark): 240 wide, 6px gaps.
-class _LogoLockup extends StatelessWidget {
-  final bool isHi;
-  const _LogoLockup({required this.isHi});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 240,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            'assets/home/wordmark.webp',
-            width: 240,
-            height: 240 / 7.2, // 33.33 — Figma wordmark slot
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.medium,
-            semanticLabel: 'milkekhelo.com',
-          ),
-          const SizedBox(height: 6),
-          const CustomPaint(size: Size(146, 10), painter: _HeartDividerPainter()),
-          const SizedBox(height: 6),
-          Text(
-            isHi ? 'कम स्क्रॉल, ज़्यादा कहानियाँ' : 'Less Scrolling. More Stories.',
-            textAlign: TextAlign.center,
-            style: AppText.tagline(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Exact port of the lockup's divider SVG (viewBox 0 0 146 10): two 1px
-/// white lines at 40% opacity either side of a small white heart.
-class _HeartDividerPainter extends CustomPainter {
-  const _HeartDividerPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 146, size.height / 10);
-    final line = Paint()
-      ..color = const Color(0x66FFFFFF)
-      ..strokeWidth = 1;
-    canvas.drawLine(const Offset(0, 5), const Offset(63, 5), line);
-    canvas.drawLine(const Offset(83, 5), const Offset(146, 5), line);
-
-    final heart = Path()
-      ..moveTo(73, 8)
-      ..cubicTo(70.5, 6, 68.5, 4.6, 68.5, 2.9)
-      ..cubicTo(68.5, 1.7, 69.5, 1, 70.6, 1)
-      ..cubicTo(71.5, 1, 72.3, 1.5, 73, 2.4)
-      ..cubicTo(73.7, 1.5, 74.5, 1, 75.4, 1)
-      ..cubicTo(76.5, 1, 77.5, 1.7, 77.5, 2.9)
-      ..cubicTo(77.5, 4.6, 75.5, 6, 73, 8)
-      ..close();
-    canvas.drawPath(heart, Paint()..color = Colors.white);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 // ───────────────────────────── Cards ────────────────────────────
 
-class _GameSections extends StatelessWidget {
-  final bool isHi;
-  const _GameSections({required this.isHi});
-
-  static bool _precached = false;
-
-  /// Decode both language sets once, so switching EN ⇄ हिं swaps the card
-  /// art instantly with no blank frame.
-  static void _precacheBothLanguages(BuildContext context) {
-    if (_precached) return;
-    _precached = true;
-    for (final g in const ['memory_grid', 'whos_that', 'my_first', 'snl', 'blocks_jodo', 'thank_you']) {
-      for (final l in const ['en', 'hi']) {
-        precacheImage(AssetImage('assets/home/card_${g}_$l.webp'), context);
-      }
-    }
-  }
-
-  void _push(BuildContext context, Widget screen) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-
-  @override
-  Widget build(BuildContext context) {
-    // Card art is language-specific (the game name is part of the picture).
-    // Lossless WebP — pixel-identical to the supplied PNGs.
-    final lang = isHi ? 'hi' : 'en';
-    _precacheBothLanguages(context);
-
-    Widget small(int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
-      // Figma: 100×100 card, radius 16, 84px art inset 8px.
-      return SizedBox(
-        width: 100,
-        child: _GameModuleCard(
-          index: index,
-          palette: palette,
-          image: 'assets/home/card_${game}_$lang.webp',
-          faceHeight: 100,
-          radius: 16,
-          artSize: 84,
-          artTop: 8,
-          label: label,
-          onTap: () => _push(context, screen()),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SectionTitle(isHi ? 'सबसे लोकप्रिय खेल' : 'Most Popular Games'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  // Figma: 122.37px art, 14px from the top (11.6px clear below). Fixed
-                  // size, so wider phones keep the Figma margins.
-                  Expanded(
-                    child: _GameModuleCard(
-                      index: 0,
-                      palette: AppColors.memoryGrid,
-                      image: 'assets/home/card_memory_grid_$lang.webp',
-                      faceHeight: 148,
-                      radius: 24,
-                      artSize: 122.37,
-                      artTop: 14,
-                      label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
-                      onTap: () => _push(context, const MemoryGridHomeScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Figma: 130px art, 9px from the top (9px clear below).
-                  Expanded(
-                    child: _GameModuleCard(
-                      index: 1,
-                      palette: AppColors.snakesAndLadders, // module/pink
-                      image: 'assets/home/card_whos_that_$lang.webp',
-                      faceHeight: 148,
-                      radius: 24,
-                      artSize: 130,
-                      artTop: 9,
-                      label: isHi ? 'पहचान कौन' : "Who's That?",
-                      onTap: () => _push(context, const WhosThatScreen()),
-                    ),
-                  ),
-                ],
-              ),
-              // Figma: 24px from the card faces to the next section; the
-              // 6px ledge already sits inside the row.
-              const SizedBox(height: 24 - _GameModuleCard.ledge),
-              _SectionTitle(isHi ? 'और खेल' : 'More Games'),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-        // Figma: the More Games row runs off the right edge — it scrolls
-        // sideways, 8px apart, starting on the 20px margin.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          clipBehavior: Clip.none,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              small(2, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
-              const SizedBox(width: 8),
-              small(3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders', () => const SnlHomeScreen()),
-              const SizedBox(width: 8),
-              small(4, AppColors.blocksJodo, 'blocks_jodo', isHi ? 'ब्लॉक जोड़ो' : 'Block Jodo', () => const BlocksJodoScreen()),
-              const SizedBox(width: 8),
-              small(5, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 /// Figma "Section Divider": SemiBold 16, text/primary, left-aligned.
 class _SectionTitle extends StatelessWidget {

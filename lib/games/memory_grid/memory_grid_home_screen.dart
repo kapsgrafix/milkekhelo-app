@@ -223,7 +223,8 @@ class MgHowToPlaySheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = isDuel ? t.howStepsDuel : t.howStepsSolo;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      // Clear the phone's gesture / navigation bar.
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 32 + MediaQuery.viewPaddingOf(context).bottom),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
