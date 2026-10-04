@@ -771,13 +771,9 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
           left: center.dx - size.width / 2,
           top: center.dy - size.height / 2,
           child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  if (!_returning) const BoxShadow(color: Color(0x55000000), blurRadius: 18, offset: Offset(0, 10)),
-                ],
-              ),
-              child: CustomPaint(size: size, painter: BjPiecePainter(piece: p, cell: m.cell, gap: m.gap)),
+            child: CustomPaint(
+              size: size,
+              painter: BjPiecePainter(piece: p, cell: m.cell, gap: m.gap, shadow: !_returning),
             ),
           ),
         );

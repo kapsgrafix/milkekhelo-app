@@ -36,9 +36,9 @@ import 'settings_sheet.dart';
 ///        scrolls sideways
 ///   638  …32px to the 50px bottom bar (670)
 ///
-/// As in Figma the logo is pinned to the top and the card sections to the
-/// bottom; the gap between them flexes with the screen height. If a screen
-/// is too short, the content scrolls.
+/// The sections start right under the banner (y 300) on every screen size;
+/// any extra height on tall phones is left below them. If a screen is too
+/// short, the content scrolls.
 ///
 /// This screen holds no game logic — each card just pushes that game's route.
 const Color _homeBgEdge = Color(0xFF000E3A);
@@ -142,34 +142,35 @@ class _HomeBody extends StatelessWidget {
   final bool isHi;
   const _HomeBody({required this.isHi});
 
+  /// Figma: below the 56px header the banner area runs to y 300, where
+  /// the game sections start (logo at y 130).
+  static const double _bannerHeight = 300 - 56;
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                children: [
-                  const SizedBox(height: 74), // logo at y 130 (header is 56)
-                  _LogoLockup(isHi: isHi),
-                  const SizedBox(height: 24),
-                  const Spacer(),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: _GameSections(isHi: isHi),
-                  ),
-                  // Figma: 32px from the last card face to the bottom bar
-                  // (6 of it is the card ledge).
-                  const SizedBox(height: 32 - _GameModuleCard.ledge),
-                ],
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: Column(
+        children: [
+          SizedBox(
+            height: _bannerHeight,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 130 - 56),
+                child: _LogoLockup(isHi: isHi),
               ),
             ),
           ),
-        );
-      },
+          // Sections sit right under the banner (top-aligned, as in Figma).
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: _GameSections(isHi: isHi),
+          ),
+          // Figma: 32px below the last card face (6 of it is the ledge).
+          const SizedBox(height: 32 - _GameModuleCard.ledge),
+        ],
+      ),
     );
   }
 }
@@ -355,7 +356,8 @@ class _GameSections extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  // Figma: art 122.37px (square) on a 155px card, 14px from top.
+                  // Figma: 122.37px art, 14px from the top (11.6px clear below). Fixed
+                  // size, so wider phones keep the Figma margins.
                   Expanded(
                     child: _GameModuleCard(
                       index: 0,
@@ -363,14 +365,14 @@ class _GameSections extends StatelessWidget {
                       image: 'assets/home/card_memory_grid_$lang.webp',
                       faceHeight: 148,
                       radius: 24,
-                      artFraction: 122.37 / 155,
+                      artSize: 122.37,
                       artTop: 14,
                       label: isHi ? 'मेमोरी जाल' : 'Memory Grid',
                       onTap: () => _push(context, const MemoryGridHomeScreen()),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Figma: art 130px on a 155px card, 9px from top.
+                  // Figma: 130px art, 9px from the top (9px clear below).
                   Expanded(
                     child: _GameModuleCard(
                       index: 1,
@@ -378,7 +380,7 @@ class _GameSections extends StatelessWidget {
                       image: 'assets/home/card_whos_that_$lang.webp',
                       faceHeight: 148,
                       radius: 24,
-                      artFraction: 130 / 155,
+                      artSize: 130,
                       artTop: 9,
                       label: isHi ? 'पहचान कौन' : "Who's That?",
                       onTap: () => _push(context, const WhosThatScreen()),

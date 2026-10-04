@@ -129,8 +129,8 @@ class MemoryGridHomeScreen extends StatelessWidget {
 }
 
 /// Figma L1 V2 mode card: 312×80 gradient face (top → bottom colour),
-/// radius 16, 5px solid ledge; centred white title (h1) over subtitle
-/// (body/base). Pressed = 18% black overlay plus the shared press-down.
+/// radius 16, 5px solid ledge; centred white title (h1, thin outline in the
+/// ledge colour) over subtitle (body/base). Pressed = 18% black overlay plus the shared press-down.
 class _ModeCard extends StatelessWidget {
   static const double faceHeight = 80;
   static const double ledge = 5;
@@ -149,6 +149,7 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final h1 = AppFonts.baloo(fontSize: 28, fontWeight: FontWeight.w800, height: 1.15);
     return Semantics(
       button: true,
       label: '$title. $subtitle',
@@ -170,12 +171,26 @@ class _ModeCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // White title over a thin outline in the ledge colour
+                    // (same treatment as the Snakes & Ladders mode cards).
                     FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        style: AppFonts.baloo(fontSize: 28, fontWeight: FontWeight.w800, height: 1.15),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            style: h1.copyWith(
+                              foreground: Paint()
+                                ..style = PaintingStyle.stroke
+                                ..strokeWidth = 3
+                                ..strokeJoin = StrokeJoin.round
+                                ..color = palette.shadow,
+                            ),
+                          ),
+                          Text(title, maxLines: 1, style: h1),
+                        ],
                       ),
                     ),
                     FittedBox(
