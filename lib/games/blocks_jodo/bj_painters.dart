@@ -8,29 +8,74 @@ import 'bj_engine.dart';
 
 // ─────────────────────────── Block look ───────────────────────────
 
-/// Draws one block. Figma: solid module colour, 2px radius and a faint
-/// 4px inner edge (rgba(0,0,0,.04)) at 39.75px — plus a soft top light and
-/// bottom shade so pieces read as chunky, tappable blocks.
+/// Draws one glossy "candy" block:
+///   • body: vertical gradient, lighter top → module colour → deeper bottom
+///   • bevel: bright top/left lip, dark bottom/right lip
+///   • gloss: a rounded white highlight across the upper half
+///   • sparkle: a small specular dot top-left
+///   • a crisp 1px dark rim so neighbours stay distinct
+/// Every layer honours [opacity] (ghost previews, popping blocks).
 void paintBlock(Canvas canvas, Rect r, Color color, {double opacity = 1}) {
   if (opacity <= 0) return;
   final w = r.width;
-  final radius = Radius.circular(max(2.0, w * 0.06));
-  final rr = RRect.fromRectAndRadius(r, radius);
+  final h = r.height;
+  if (w <= 0 || h <= 0) return;
+  final rr = RRect.fromRectAndRadius(r, Radius.circular(max(2.0, w * 0.14)));
   int a(double v) => (v * 255 * opacity).round().clamp(0, 255);
-  canvas.drawRRect(rr, Paint()..color = color.withAlpha(a(1.0)));
-  final band = w * 0.13;
+  Color o(Color c, double v) => c.withAlpha(a(v));
+
+  final hsl = HSLColor.fromColor(color);
+  final light = hsl.withLightness((hsl.lightness + 0.16).clamp(0.0, 0.92)).toColor();
+  final deep = hsl.withLightness((hsl.lightness - 0.14).clamp(0.05, 1.0)).toColor();
+
+  // Body.
+  canvas.drawRRect(
+    rr,
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [o(light, 1), o(color, 1), o(deep, 1)],
+        stops: const [0, 0.55, 1],
+      ).createShader(r),
+  );
+
   canvas.save();
   canvas.clipRRect(rr);
-  canvas.drawRect(Rect.fromLTWH(r.left, r.top, w, band), Paint()..color = Color.fromARGB(a(0.26), 255, 255, 255));
-  canvas.drawRect(Rect.fromLTWH(r.left, r.bottom - band, w, band), Paint()..color = Color.fromARGB(a(0.16), 0, 0, 0));
-  canvas.restore();
-  final edge = w * 0.1;
+  final lip = w * 0.11;
+  // Bevel: shade bottom + right, light top + left.
+  canvas.drawRect(Rect.fromLTWH(r.left, r.bottom - lip, w, lip), Paint()..color = Color.fromARGB(a(0.24), 0, 0, 0));
+  canvas.drawRect(Rect.fromLTWH(r.right - lip * 0.7, r.top, lip * 0.7, h - lip), Paint()..color = Color.fromARGB(a(0.12), 0, 0, 0));
+  canvas.drawRect(Rect.fromLTWH(r.left, r.top, w, lip * 0.75), Paint()..color = Color.fromARGB(a(0.38), 255, 255, 255));
+  canvas.drawRect(Rect.fromLTWH(r.left, r.top + lip * 0.75, lip * 0.6, h - lip * 1.75), Paint()..color = Color.fromARGB(a(0.16), 255, 255, 255));
+
+  // Gloss across the upper half.
+  final gloss = Rect.fromLTRB(r.left + w * 0.16, r.top + h * 0.13, r.right - w * 0.16, r.top + h * 0.47);
   canvas.drawRRect(
-    rr.deflate(edge / 2),
+    RRect.fromRectAndRadius(gloss, Radius.circular(w * 0.12)),
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color.fromARGB(a(0.55), 255, 255, 255), Color.fromARGB(a(0.06), 255, 255, 255)],
+      ).createShader(gloss),
+  );
+
+  // Specular sparkle.
+  canvas.drawCircle(
+    Offset(r.left + w * 0.27, r.top + h * 0.25),
+    max(1.0, w * 0.055),
+    Paint()..color = Color.fromARGB(a(0.9), 255, 255, 255),
+  );
+  canvas.restore();
+
+  // Rim.
+  canvas.drawRRect(
+    rr.deflate(0.5),
     Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = edge
-      ..color = Color.fromARGB(a(0.04), 0, 0, 0),
+      ..strokeWidth = 1
+      ..color = Color.fromARGB(a(0.22), 0, 0, 0),
   );
 }
 

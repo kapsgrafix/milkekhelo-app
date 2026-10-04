@@ -49,6 +49,9 @@ class MgData {
   static const mediumCard = MgCardPalette(top: Color(0xFFFFE08A), bottom: Color(0xFFC97F00), shadow: Color(0xFF7A4B00));
   static const hardCard = MgCardPalette(top: Color(0xFFEF7676), bottom: Color(0xFFA81D1D), shadow: Color(0xFF5D1010));
 
+  /// L1 V2 "2 Players" card (module/yellow).
+  static const twoPlayerCard = MgCardPalette(top: Color(0xFFFFE08A), bottom: Color(0xFFC97F00), shadow: Color(0xFF7A4B00));
+
   /// Choice Card (2 Players Offline).
   static const duelCard = MgCardPalette(top: Color(0xFFC3B0F5), bottom: Color(0xFF6A4FC2), shadow: Color(0xFF3A2B6B));
 

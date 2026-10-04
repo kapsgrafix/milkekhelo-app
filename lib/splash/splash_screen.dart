@@ -12,7 +12,7 @@ import '../home/home_screen.dart';
 ///
 /// There is no splash frame in Figma and no logo file yet, so the studio
 /// name is set as a Baloo 2 wordmark ("Binny" white · "TechLabs" brand
-/// yellow) with "presents" underneath. To use a real logo later, swap
+/// yellow) on a flat dark-grey background. To use a real logo later, swap
 /// [_Wordmark] for an `Image.asset`.
 ///
 /// Timeline: wordmark pops in (0–0.6 s) → light sweep (0.7–1.3 s) →
@@ -26,7 +26,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  static const Color _bg = Color(0xFF000E3A);
+  static const Color _bg = Color(0xFF1E1E1E); // dark grey
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
   Timer? _timer;
   bool _precached = false;
@@ -45,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _precached = true;
     precacheImage(const AssetImage('assets/home/wordmark.webp'), context);
     final lang = AppLanguage.instance.value == AppLang.hi ? 'hi' : 'en';
-    for (final g in const ['snl', 'memory_grid', 'my_first', 'thank_you', 'blocks_jodo']) {
+    for (final g in const ['memory_grid', 'whos_that', 'my_first', 'snl', 'blocks_jodo', 'thank_you']) {
       precacheImage(AssetImage('assets/home/card_${g}_$lang.webp'), context);
     }
   }
@@ -81,47 +81,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
       child: Scaffold(
         backgroundColor: _bg,
-        body: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              radius: 0.9,
-              colors: [Color(0xFF0A2470), _bg],
-            ),
-          ),
-          child: Center(
-            child: AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) {
-                final v = reduceMotion ? 1.0 : _c.value;
-                final pop = Curves.easeOutBack.transform((v / 0.4).clamp(0.0, 1.0));
-                final fade = Curves.easeOut.transform((v / 0.3).clamp(0.0, 1.0));
-                final sub = Curves.easeOut.transform(((v - 0.35) / 0.3).clamp(0.0, 1.0));
-                final sweep = ((v - 0.47) / 0.4).clamp(0.0, 1.0);
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Opacity(
-                      opacity: fade,
-                      child: Transform.scale(
-                        scale: 0.8 + 0.2 * pop,
-                        child: _Wordmark(sweep: reduceMotion ? 0 : sweep),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Opacity(
-                      opacity: sub,
-                      child: Transform.translate(
-                        offset: Offset(0, 8 * (1 - sub)),
-                        child: Text(
-                          AppLanguage.instance.value == AppLang.hi ? 'प्रस्तुत करते हैं' : 'presents',
-                          style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 2, color: AppColors.textMuted),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+        body: Center(
+          child: AnimatedBuilder(
+            animation: _c,
+            builder: (context, _) {
+              final v = reduceMotion ? 1.0 : _c.value;
+              final pop = Curves.easeOutBack.transform((v / 0.4).clamp(0.0, 1.0));
+              final fade = Curves.easeOut.transform((v / 0.3).clamp(0.0, 1.0));
+              final sweep = ((v - 0.47) / 0.4).clamp(0.0, 1.0);
+              return Opacity(
+                opacity: fade,
+                child: Transform.scale(
+                  scale: 0.8 + 0.2 * pop,
+                  child: _Wordmark(sweep: reduceMotion ? 0 : sweep),
+                ),
+              );
+            },
           ),
         ),
       ),

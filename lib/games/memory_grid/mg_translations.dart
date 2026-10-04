@@ -24,6 +24,12 @@ class MgText {
   String get easy => _hi ? 'आसान' : 'Easy';
   String get medium => _hi ? 'मध्यम' : 'Medium';
   String get hard => _hi ? 'कठिन' : 'Hard';
+  // Landing (Figma "Memory Grid L1 V2") mode cards.
+  String get soloEasy => _hi ? 'सोलो - आसान' : 'Solo - Easy';
+  String get soloHard => _hi ? 'सोलो - कठिन' : 'Solo - Hard';
+  String get beatYourBest => _hi ? 'अपना सर्वश्रेष्ठ करो' : 'Beat Your Best';
+  String get twoPlayers => _hi ? '2 खिलाड़ी' : '2 Players';
+  String get twoPlayersSub => _hi ? 'एक ही डिवाइस, ज़्यादा स्कोर जीतता है' : 'Same device. Highest score wins';
   String easyDesc(int n) => _hi ? '$n ब्लॉक' : '$n blocks';
   String get duelName => _hi ? '2 खिलाड़ी ऑफलाइन' : '2 Players Offline';
   String get duelSub => _hi ? 'एक ही डिवाइस पर बारी-बारी से खेलें, ज़्यादा स्कोर जीतता है' : 'Same device. Take turns. Highest score wins';
