@@ -4,16 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/localization/app_language.dart';
-import '../core/theme/app_colors.dart';
-import '../core/theme/app_text_styles.dart';
 import '../home/home_screen.dart';
 
 /// BinnyTechLabs splash, shown once at launch before the home screen.
 ///
-/// There is no splash frame in Figma and no logo file yet, so the studio
-/// name is set as a Baloo 2 wordmark ("Binny" white · "TechLabs" brand
-/// yellow) on a flat dark-grey background. To use a real logo later, swap
-/// [_Wordmark] for an `Image.asset`.
+/// The BinnyTechLabs logo (assets/splash/binnytechlabs.webp — Kapil's
+/// artwork, lossless, trimmed) shown 240px wide on a flat #151515 background.
 ///
 /// Timeline: wordmark pops in (0–0.6 s) → light sweep (0.7–1.3 s) →
 /// hold → cross-fade to home at ~2 s. Home card art is pre-decoded while
@@ -26,7 +22,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  static const Color _bg = Color(0xFF1E1E1E); // dark grey
+  static const Color _bg = Color(0xFF151515);
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
   Timer? _timer;
   bool _precached = false;
@@ -43,7 +39,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.didChangeDependencies();
     if (_precached) return;
     _precached = true;
+    precacheImage(const AssetImage('assets/splash/binnytechlabs.webp'), context);
     precacheImage(const AssetImage('assets/home/wordmark.webp'), context);
+    precacheImage(const AssetImage('assets/home/banner_bg.webp'), context);
     final lang = AppLanguage.instance.value == AppLang.hi ? 'hi' : 'en';
     for (final g in const ['memory_grid', 'whos_that', 'my_first', 'snl', 'blocks_jodo', 'thank_you']) {
       precacheImage(AssetImage('assets/home/card_${g}_$lang.webp'), context);
@@ -104,22 +102,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 }
 
-/// "BinnyTechLabs" set in Baloo 2 ExtraBold with a light band that sweeps
-/// across once ([sweep] 0 → 1).
+/// The BinnyTechLabs logo with a light band that sweeps across it once
+/// ([sweep] 0 → 1).
 class _Wordmark extends StatelessWidget {
   final double sweep;
   const _Wordmark({required this.sweep});
 
+  static const double width = 240;
+  static const double aspect = 1718 / 296; // trimmed logo file
+
   @override
   Widget build(BuildContext context) {
-    final style = AppFonts.baloo(fontSize: 36, fontWeight: FontWeight.w800, height: 1.1);
-    final text = Text.rich(
-      TextSpan(children: [
-        TextSpan(text: 'Binny', style: style),
-        TextSpan(text: 'TechLabs', style: style.copyWith(color: AppColors.brandYellow)),
-      ]),
+    final logo = Image.asset(
+      'assets/splash/binnytechlabs.webp',
+      width: width,
+      height: width / aspect,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      semanticLabel: 'BinnyTechLabs',
     );
-    if (sweep <= 0 || sweep >= 1) return text;
+    if (sweep <= 0 || sweep >= 1) return logo;
     return ShaderMask(
       blendMode: BlendMode.srcATop,
       shaderCallback: (rect) => LinearGradient(
@@ -132,7 +134,7 @@ class _Wordmark extends StatelessWidget {
           (sweep * 1.4).clamp(0.0, 1.0).toDouble(),
         ],
       ).createShader(rect),
-      child: text,
+      child: logo,
     );
   }
 }

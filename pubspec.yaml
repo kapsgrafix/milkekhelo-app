@@ -24,6 +24,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/home/
+    - assets/splash/
     - assets/snakes_and_ladders/
     - assets/memory_grid/
     - assets/audio/sfx/
@@ -53,4 +54,8 @@ flutter_launcher_icons:
   image_path: "assets/app_icon/app_icon.png"
   adaptive_icon_background: "assets/app_icon/ic_background.png"
   adaptive_icon_foreground: "assets/app_icon/ic_foreground.png"
+  # 0.14 wraps the foreground in a 16% inset by default, which shrank the
+  # artwork well inside the launcher mask. The art already has its own
+  # safe-zone padding, so no extra inset.
+  adaptive_icon_foreground_inset: 0
   min_sdk_android: 21
