@@ -23,20 +23,21 @@ import 'settings_sheet.dart';
 /// The launcher / home screen — Figma "Home - L0 Final - Phase 3"
 /// (MilkeKhelo-Design, node 348:2469, 360×720).
 ///
-/// Figma layout (y from frame top, content 320 wide at x 20):
+/// Figma layout (y from frame top). Kapil's tweaks on top of the frame:
+/// 16px side margins, Party Games cards fill the row (10px gaps, square),
+/// no bottom bar.
 ///   0    Header (Type=Logo): menu · centred 136px wordmark · language   56
 ///   68   Featured banner 320×264, radius 24: block-art background,
 ///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
 ///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
-///        (100×100 cards, gap 8, radius 16, 6px ledge)
+///        (square cards filling the row, gap 10, radius 16, 6px ledge)
 ///   513  "Classic Games" — Snakes & Ladders · Memory Grid
 ///        (155×148 cards, gap 10, radius 24, 6px ledge)
-///        32px bottom padding · 50px bottom bar (#252F55)
-/// The content runs past the bottom bar in Figma, so it scrolls.
+///        32px bottom padding
+/// The content is taller than most screens, so it scrolls.
 ///
 /// This screen holds no game logic — each card just pushes that game's route.
 const Color _homeBgEdge = Color(0xFF000E3A);
-const Color _homeBottomBar = Color(0xFF252F55);
 
 void _push(BuildContext context, Widget screen) =>
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -51,7 +52,7 @@ class HomeScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: _homeBottomBar,
+        systemNavigationBarColor: _homeBgEdge,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
@@ -75,12 +76,6 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const SafeArea(bottom: false, child: _HomeHeader()),
                   Expanded(child: _HomeBody(isHi: isHi)),
-                  // Figma "Rectangle 34624632": 50px bar, #252F55.
-                  Container(
-                    width: double.infinity,
-                    height: 50 + MediaQuery.paddingOf(context).bottom,
-                    color: _homeBottomBar,
-                  ),
                 ],
               );
             },
@@ -119,18 +114,19 @@ class _HomeBody extends StatelessWidget {
     final lang = isHi ? 'hi' : 'en';
     _precacheAll(context);
 
-    Widget small(int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
-      // Figma: 100×100 card, radius 16, 84px art inset 8px.
+    // Party cards share the full row width (10px gaps) and stay square:
+    // radius 16, art 84% of the card, inset 8% (Figma 84 / 8 at 100px).
+    Widget small(double side, int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
       return SizedBox(
-        width: 100,
+        width: side,
         child: _GameModuleCard(
           index: index,
           palette: palette,
           image: 'assets/home/card_${game}_$lang.webp',
-          faceHeight: 100,
+          faceHeight: side,
           radius: 16,
-          artSize: 84,
-          artTop: 8,
+          artSize: side * 0.84,
+          artTop: side * 0.08,
           label: label,
           onTap: () => _push(context, screen()),
         ),
@@ -156,10 +152,10 @@ class _HomeBody extends StatelessWidget {
 
     return SingleChildScrollView(
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32 - _GameModuleCard.ledge),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 32 - _GameModuleCard.ledge + MediaQuery.paddingOf(context).bottom),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
+          constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -167,15 +163,20 @@ class _HomeBody extends StatelessWidget {
               const SizedBox(height: 24),
               _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games'),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  small(0, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
-                  const SizedBox(width: 8),
-                  small(1, AppColors.snakesAndLadders /* module/pink */, 'whos_that', isHi ? 'पहचान कौन' : "Who's That?",
-                      () => const WhosThatScreen()),
-                  const SizedBox(width: 8),
-                  small(2, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
-                ],
+              LayoutBuilder(
+                builder: (context, c) {
+                  final side = (c.maxWidth - 2 * 10) / 3;
+                  return Row(
+                    children: [
+                      small(side, 0, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 1, AppColors.snakesAndLadders /* module/pink */, 'whos_that',
+                          isHi ? 'पहचान कौन' : "Who's That?", () => const WhosThatScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 2, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
+                    ],
+                  );
+                },
               ),
               // Figma: 24px from the card faces to the next section; the
               // 6px ledge already sits inside the row.
