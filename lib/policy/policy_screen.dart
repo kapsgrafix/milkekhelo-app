@@ -40,6 +40,7 @@ class PolicyScreen extends StatelessWidget {
                   child: GameHeader(
                     title: isHi ? 'नीति' : 'Policy',
                     onBack: () => Navigator.of(context).pop(),
+                    soundToggle: false,
                   ),
                 ),
                 Expanded(

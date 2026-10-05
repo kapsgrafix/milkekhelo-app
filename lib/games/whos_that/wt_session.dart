@@ -126,9 +126,10 @@ class WtSession extends ChangeNotifier {
       throw const WtException(WtFailure.network);
     }
     if (state is! Map) throw const WtException(WtFailure.notFound);
-    if (state['phase'] != 'lobby') throw const WtException(WtFailure.started);
     final players = state['players'];
     if (players is Map && players.length >= maxPlayers) throw const WtException(WtFailure.full);
+    // Mid-game: the screen sends a join request instead (see WtJoinRequest).
+    if (state['phase'] != 'lobby') throw const WtException(WtFailure.started);
     final id = _makeId();
     try {
       await db.put('whosthat/$code/players/$id', {
@@ -317,6 +318,40 @@ class WtSession extends ChangeNotifier {
     return WtRoundResult(WtOutcome.tie, leaders);
   }
 
+  /// Join requests from people who entered the code after the game began
+  /// (host only acts on these). Oldest first.
+  List<WtJoinAsk> get pendingRequests {
+    final r = _state?['requests'];
+    if (r is! Map) return const [];
+    final list = <WtJoinAsk>[];
+    r.forEach((k, v) {
+      if (v is Map && v['name'] is String && v['status'] == null) {
+        list.add(WtJoinAsk(id: k.toString(), name: v['name'] as String, at: _int(v['at'])));
+      }
+    });
+    list.sort((a, b) => a.at.compareTo(b.at));
+    return list;
+  }
+
+  /// Host: let a latecomer in. Returns false if the room is full (they're
+  /// told) or the write failed.
+  Future<bool> acceptRequest(WtJoinAsk a) async {
+    if (!isHost) return false;
+    if (players.length >= maxPlayers) {
+      await _update({'requests/${a.id}/status': 'full'});
+      return false;
+    }
+    return _update({
+      'players/${a.id}': {'name': a.name, 'isHost': false, 'joinedAt': DateTime.now().millisecondsSinceEpoch},
+      'requests/${a.id}': null,
+    });
+  }
+
+  Future<bool> declineRequest(WtJoinAsk a) async {
+    if (!isHost) return false;
+    return _update({'requests/${a.id}/status': 'declined'});
+  }
+
   // ───────────────────────── Player actions ─────────────────────────
 
   Future<bool> answer(String targetId) async {
@@ -454,5 +489,98 @@ class WtSession extends ChangeNotifier {
     _connSub?.cancel();
     _live?.close();
     super.dispose();
+  }
+}
+
+/// Someone asking to join a game that's already running.
+class WtJoinAsk {
+  final String id;
+  final String name;
+  final int at;
+  const WtJoinAsk({required this.id, required this.name, required this.at});
+
+  String get initial => name.isEmpty ? '?' : name.characters.first.toUpperCase();
+}
+
+enum WtJoinAnswer { accepted, declined, full, ended, cancelled }
+
+/// A latecomer's request to join a running game. Writes
+/// `whosthat/<CODE>/requests/<id> = {name, at}` and waits for the host:
+///   accepted → the host added them to `players` (request removed)
+///   declined / full → the host set `requests/<id>/status`
+///   ended → the room disappeared
+/// (A web host can't see requests — the latecomer can cancel and wait for
+/// the next game.)
+class WtJoinRequest {
+  final String code;
+  final String id;
+  final String name;
+
+  WtJoinRequest._(this.code, this.id, this.name);
+
+  final WtRtdb _db = WtRtdb.instance;
+  final Completer<WtJoinAnswer> _done = Completer<WtJoinAnswer>();
+  WtLiveValue? _live;
+  StreamSubscription<dynamic>? _sub;
+
+  Future<WtJoinAnswer> get answer => _done.future;
+
+  static Future<WtJoinRequest> send({required String code, required String name}) async {
+    final id = WtSession._makeId();
+    try {
+      await WtRtdb.instance.put('whosthat/$code/requests/$id', {'name': name, 'at': WtRtdb.serverTimestamp});
+    } catch (_) {
+      throw const WtException(WtFailure.network);
+    }
+    return WtJoinRequest._(code, id, name).._listen();
+  }
+
+  void _listen() {
+    _live = _db.listen('whosthat/$code');
+    _sub = _live!.values.listen((v) {
+      if (_done.isCompleted) return;
+      if (v is! Map) return _finish(WtJoinAnswer.ended);
+      final players = v['players'];
+      if (players is Map && players.containsKey(id)) return _finish(WtJoinAnswer.accepted);
+      final reqs = v['requests'];
+      final mine = reqs is Map ? reqs[id] : null;
+      if (mine is Map) {
+        if (mine['status'] == 'declined') return _finish(WtJoinAnswer.declined);
+        if (mine['status'] == 'full') return _finish(WtJoinAnswer.full);
+      }
+    });
+    _live!.start();
+  }
+
+  void _finish(WtJoinAnswer a) {
+    if (_done.isCompleted) return;
+    _done.complete(a);
+    _close();
+    if (a != WtJoinAnswer.accepted && a != WtJoinAnswer.ended) {
+      _db.delete('whosthat/$code/requests/$id').catchError((_) {});
+    }
+  }
+
+  void _close() {
+    _sub?.cancel();
+    _live?.close();
+    _sub = null;
+    _live = null;
+  }
+
+  /// Withdraw the request. Also removes the player entry in case the host
+  /// accepted at the same moment, so no ghost player is left behind.
+  Future<void> cancel() async {
+    _finish(WtJoinAnswer.cancelled);
+    _close();
+    try {
+      await _db.patch('whosthat/$code', {'requests/$id': null, 'players/$id': null});
+    } catch (_) {}
+  }
+
+  /// After [WtJoinAnswer.accepted]: the live session for this player.
+  WtSession toSession() {
+    _db.put('whosthat/$code/seen/$id', WtRtdb.serverTimestamp).catchError((_) {});
+    return WtSession._(code, id, name).._start();
   }
 }

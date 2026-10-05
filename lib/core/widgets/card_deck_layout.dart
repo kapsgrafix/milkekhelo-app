@@ -85,7 +85,7 @@ class CardDeckLayout extends StatelessWidget {
           children: [
             SafeArea(
               bottom: false,
-              child: GameHeader(title: title, onBack: onBack, onHelp: onHelp),
+              child: GameHeader(title: '', onBack: onBack, onHelp: onHelp),
             ),
             const SizedBox(height: 24),
             DeckProgressBar(index: progressIndex, total: progressTotal),

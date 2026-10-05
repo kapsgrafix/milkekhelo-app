@@ -36,6 +36,8 @@ class _WtGameScreenState extends State<WtGameScreen> {
   int _lastQ = -1;
   int _lastPlayers = 0;
   String? _pendingPick;
+  final Set<String> _seenAsks = {};
+  String? _answeringAsk;
 
   @override
   void initState() {
@@ -87,6 +89,13 @@ class _WtGameScreenState extends State<WtGameScreen> {
       _lastPhase = phase;
       _lastQ = q;
     }
+    // Host: chime when someone new asks to join mid-game.
+    if (s.isHost) {
+      final asks = s.pendingRequests;
+      if (asks.any((a) => !_seenAsks.contains(a.id))) Fx.turn();
+      _seenAsks.addAll(asks.map((a) => a.id));
+    }
+
     final count = s.players.length;
     if (phase == 'lobby' && count > _lastPlayers && _lastPlayers > 0) Fx.toggle();
     _lastPlayers = count;
@@ -211,11 +220,96 @@ class _WtGameScreenState extends State<WtGameScreen> {
                     ),
                   ),
                   Positioned.fill(child: IgnorePointer(child: _WtConfetti(key: _confetti))),
+                  _joinAskOverlay(t),
                 ],
               );
             },
           );
         },
+      ),
+    );
+  }
+
+  /// Host-only card under the header: "<name> wants to join the game"
+  /// with Decline / Accept. One request at a time, oldest first.
+  Widget _joinAskOverlay(WtText t) {
+    final asks = s.isHost && s.ready ? s.pendingRequests : const <WtJoinAsk>[];
+    final ask = asks.isEmpty ? null : asks.first;
+    return Positioned(
+      top: MediaQuery.paddingOf(context).top + 56 + 4,
+      left: 16,
+      right: 16,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        transitionBuilder: (child, a) => FadeTransition(
+          opacity: a,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0, -0.15), end: Offset.zero).animate(a),
+            child: child,
+          ),
+        ),
+        child: ask == null ? const SizedBox.shrink() : _joinAskCard(t, ask, asks.length - 1),
+      ),
+    );
+  }
+
+  Widget _joinAskCard(WtText t, WtJoinAsk ask, int more) {
+    final busy = _answeringAsk == ask.id;
+    Future<void> act(bool accept) async {
+      if (_answeringAsk != null) return;
+      setState(() => _answeringAsk = ask.id);
+      final ok = accept ? await s.acceptRequest(ask) : await s.declineRequest(ask);
+      if (!mounted) return;
+      setState(() => _answeringAsk = null);
+      if (!ok) showWtToast(context, accept && s.players.length >= WtSession.maxPlayers ? t.gameFull : t.sendFailed);
+    }
+
+    return Material(
+      key: ValueKey(ask.id),
+      type: MaterialType.transparency,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(const Color(0x38000000), const Color(0xFF5A1730)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: WtColors.tint(WtColors.pink, 0.6), width: 1.5),
+          boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 18, offset: Offset(0, 6))],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                WtAvatar(id: ask.id, initial: ask.initial),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ask.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800, height: 1.2)),
+                      Text(more > 0 ? '${t.wantsToJoin} (+$more)' : t.wantsToJoin,
+                          style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Opacity(
+              opacity: busy ? 0.5 : 1,
+              child: Row(
+                children: [
+                  Expanded(child: WtGhostButton(label: t.decline, onTap: () => act(false))),
+                  const SizedBox(width: 10),
+                  Expanded(child: ChunkyButton(label: t.accept, onTap: busy ? null : () => act(true))),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -445,6 +539,22 @@ class _WtGameScreenState extends State<WtGameScreen> {
     );
   }
 
+  /// The room code, small and dim, under the score boxes — so anyone can
+  /// read it out to a latecomer at any point in the game.
+  Widget _codeLine(WtText t) => Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          '${t.gameCode} · ${s.code}',
+          style: AppFonts.baloo(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 14 / 10,
+            letterSpacing: 1,
+            color: WtColors.tint(AppColors.textMuted, 0.55),
+          ),
+        ),
+      );
+
   // ───────────────────────── Question ─────────────────────────
 
   Widget _question(WtText t) {
@@ -454,9 +564,10 @@ class _WtGameScreenState extends State<WtGameScreen> {
     return Column(
       children: [
         WtScoreSection(t: t, score: s.score, target: s.target, remaining: max(0, s.qCount - s.qIndex)),
+        _codeLine(t),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -581,9 +692,10 @@ class _WtGameScreenState extends State<WtGameScreen> {
     return Column(
       children: [
         WtScoreSection(t: t, score: s.score, target: s.target, remaining: max(0, s.qCount - s.qIndex - 1)),
+        _codeLine(t),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

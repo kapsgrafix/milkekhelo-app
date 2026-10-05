@@ -7,7 +7,7 @@ class BjData {
   BjData._();
 
   /// Figma "Blocks Jodo L2" (252:1195) uses background/screen-pink.
-  static const Color screenBg = Color(0xFF3D0F1E);
+  static const Color screenBg = Color(0xFF1B0F3D); // background/screen-purple (Figma "Blocks Jodo L2")
 
   /// 8×8 board, as in Block Blast.
   static const int size = 8;

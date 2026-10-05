@@ -1,28 +1,32 @@
 import 'package:flutter/material.dart';
 
+import '../feedback/feedback_settings.dart';
 import '../feedback/fx.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'language_toggle.dart';
 
 /// Figma "Header / Type=Game Title" — shared by every game screen:
-///   12px padding · Left slot 72px (Go Back + How To, 8px gap) ·
-///   centred title (label/card) · 72px Language Toggle on the right.
+///   12px padding · left slot (Go Back · Sound · How To, 8px gaps) ·
+///   centred title (label/card, usually empty) · Language Toggle on the right.
 ///
-/// The left slot is always 72px wide (same as the toggle) so the title stays
-/// optically centred even when a screen has no help button.
+/// The Sound button (shown when [soundToggle] is true — every game screen)
+/// switches music, sound effects and vibration off together, or back on.
+/// It shares state with the Menu sheet's three toggles.
 ///
 /// This is the ONLY place the header chrome is defined.
 class GameHeader extends StatelessWidget {
   final String title;
   final VoidCallback onBack;
   final VoidCallback? onHelp;
+  final bool soundToggle;
 
   const GameHeader({
     super.key,
     required this.title,
     required this.onBack,
     this.onHelp,
+    this.soundToggle = true,
   });
 
   @override
@@ -31,15 +35,22 @@ class GameHeader extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          SizedBox(
-            width: 72,
+          // Left slot is at least as wide as the language toggle (72) so a
+          // title stays optically centred.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 72),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 HeaderIconButton(
                   semanticLabel: 'Back',
                   onTap: onBack,
                   child: const Icon(Icons.arrow_back_rounded, size: 16, color: AppColors.textPrimary),
                 ),
+                if (soundToggle) ...[
+                  const SizedBox(width: 8),
+                  const _SoundButton(),
+                ],
                 if (onHelp != null) ...[
                   const SizedBox(width: 8),
                   HeaderIconButton(
@@ -63,6 +74,38 @@ class GameHeader extends StatelessWidget {
           const LanguageToggle(),
         ],
       ),
+    );
+  }
+}
+
+/// 32×32 header button: speaker on / speaker muted. "On" = any of music,
+/// sound effects or vibration enabled; a tap turns all three off, or all
+/// three back on.
+class _SoundButton extends StatelessWidget {
+  const _SoundButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final fs = FeedbackSettings.instance;
+    return ListenableBuilder(
+      listenable: Listenable.merge([fs.music, fs.sfx, fs.haptics]),
+      builder: (context, _) {
+        final on = fs.music.value || fs.sfx.value || fs.haptics.value;
+        return HeaderIconButton(
+          semanticLabel: on ? 'Sound on — tap to mute' : 'Sound off — tap to unmute',
+          onTap: () {
+            fs.setMusic(!on);
+            fs.setSfx(!on);
+            fs.setHaptics(!on);
+            if (!on) Fx.toggle(); // confirm it's back on
+          },
+          child: Icon(
+            on ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            size: 16,
+            color: on ? AppColors.textPrimary : AppColors.textMuted,
+          ),
+        );
+      },
     );
   }
 }

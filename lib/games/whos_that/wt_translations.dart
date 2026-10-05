@@ -90,6 +90,16 @@ class WtText {
   String get leave => hi ? 'छोड़ें' : 'Leave';
   String get stay => hi ? 'रुकें' : 'Stay';
 
+  // Joining a game that's already running
+  String get askingTitle => hi ? 'जॉइन करने का अनुरोध' : 'Asking to Join';
+  String get askingSub => hi ? 'गेम शुरू हो चुका है — होस्ट की मंज़ूरी चाहिए' : 'The game has started — the host needs to let you in';
+  String get waitingApproval => hi ? 'होस्ट की मंज़ूरी का इंतज़ार…' : 'Waiting for the host to accept…';
+  String get cancel => hi ? 'रद्द करें' : 'Cancel';
+  String get declined => hi ? 'होस्ट ने आपका अनुरोध मना कर दिया' : 'The host declined your request';
+  String get wantsToJoin => hi ? 'गेम में शामिल होना चाहते हैं' : 'wants to join the game';
+  String get accept => hi ? 'स्वीकार करें' : 'Accept';
+  String get decline => hi ? 'मना करें' : 'Decline';
+
   // Toasts
   String get enterName => hi ? 'अपना नाम डालें' : 'Enter your name';
   String get enterCode => hi ? '4 अक्षरों का कोड डालें' : 'Enter the 4-letter code';
