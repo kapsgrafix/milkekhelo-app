@@ -72,7 +72,7 @@ class _WtGameScreenState extends State<WtGameScreen> {
       } else if (phase == 'reveal') {
         final r = s.roundResult;
         if (r?.outcome == WtOutcome.bullseye) {
-          Fx.correct();
+          Fx.roundWin(); // celebratory jingle + haptic
         } else {
           Fx.turn();
         }
@@ -647,6 +647,7 @@ class _WtGameScreenState extends State<WtGameScreen> {
         line = Text(t.tieSub(r.picked.map(nameOf).toList()), textAlign: TextAlign.center, style: muted);
     }
     final banner = Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: WtColors.tint(color, 0.16),
@@ -664,28 +665,15 @@ class _WtGameScreenState extends State<WtGameScreen> {
       ),
     );
     if (r.outcome != WtOutcome.bullseye) return banner;
-    // Figma "Confetti": five small rotated squares along the banner's top edge.
-    Widget dot(double left, double top, double size, double deg, Color c) => Positioned(
-          left: left,
-          top: top,
-          child: Transform.rotate(
-            angle: deg * pi / 180,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(size / 4)),
-            ),
-          ),
-        );
+    // A gentle, looping confetti fall inside the card (clipped to it).
     return Stack(
-      clipBehavior: Clip.none,
       children: [
         banner,
-        dot(10, -8, 8, -20, const Color(0xFFFBBF24)),
-        dot(40, 4, 6, -45, const Color(0xFFEC4899)),
-        dot(150, -11, 6, -10, const Color(0xFFFB923C)),
-        dot(255, 14, 9, 30, const Color(0xFF4ADE80)),
-        dot(281, -2, 7, 15, const Color(0xFF22D3EE)),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ClipRRect(borderRadius: BorderRadius.circular(22), child: const _CardConfetti()),
+          ),
+        ),
       ],
     );
   }
@@ -869,4 +857,105 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ConfettiPainter old) => true;
+}
+
+// ───────────────────────── Bullseye card confetti ─────────────────────────
+
+/// Subtle confetti that drifts down through the Bullseye card on a loop:
+/// 22 small pieces in the web game's colours, each with its own speed,
+/// sway and spin. Off when the phone's "remove animations" setting is on.
+class _CardConfetti extends StatefulWidget {
+  const _CardConfetti();
+
+  @override
+  State<_CardConfetti> createState() => _CardConfettiState();
+}
+
+class _CardConfettiState extends State<_CardConfetti> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+  late final List<_Piece> _pieces;
+
+  static const _colors = [
+    Color(0xFFFBBF24), Color(0xFFEC4899), Color(0xFF22D3EE), Color(0xFF4ADE80), Color(0xFFFB923C), Color(0xFF60A5FA),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final rng = Random();
+    _pieces = List.generate(
+      22,
+      (_) => _Piece(
+        x: rng.nextDouble(),
+        phase: rng.nextDouble(),
+        speed: 1 + rng.nextInt(2).toDouble(), // 1 or 2 falls per loop
+        sway: 4 + rng.nextDouble() * 6,
+        size: 5 + rng.nextDouble() * 3,
+        spin: (rng.nextBool() ? 1 : -1) * (2 + rng.nextDouble() * 3),
+        color: _colors[rng.nextInt(_colors.length)],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return const SizedBox.expand();
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => CustomPaint(size: Size.infinite, painter: _CardConfettiPainter(_pieces, _c.value)),
+    );
+  }
+}
+
+class _Piece {
+  final double x, phase, speed, sway, size, spin;
+  final Color color;
+  const _Piece({
+    required this.x,
+    required this.phase,
+    required this.speed,
+    required this.sway,
+    required this.size,
+    required this.spin,
+    required this.color,
+  });
+}
+
+class _CardConfettiPainter extends CustomPainter {
+  final List<_Piece> pieces;
+  final double t; // 0 → 1 over one loop
+  _CardConfettiPainter(this.pieces, this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (final p in pieces) {
+      final f = (t * p.speed + p.phase) % 1.0;
+      final y = -12 + f * (size.height + 24);
+      final x = p.x * size.width + sin((f + p.phase) * pi * 4) * p.sway;
+      // Fade in at the top edge and out near the bottom so pieces never pop.
+      final a = (f < 0.1 ? f / 0.1 : (f > 0.85 ? (1 - f) / 0.15 : 1.0)) * 0.75;
+      paint.color = p.color.withAlpha((a.clamp(0.0, 1.0) * 255).round());
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(f * p.spin * pi);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.7),
+          Radius.circular(p.size * 0.2),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CardConfettiPainter old) => old.t != t;
 }
