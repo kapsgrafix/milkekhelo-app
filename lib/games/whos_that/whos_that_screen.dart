@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/game_landing_body.dart';
 import '../../core/widgets/heartbeat.dart';
 import '../../core/widgets/pressable_card.dart';
 import 'wt_create_screen.dart';
@@ -9,7 +10,9 @@ import 'wt_join_screen.dart';
 import 'wt_translations.dart';
 import 'wt_widgets.dart';
 
-/// Who's That? landing — Figma "Whosthat Home" (322:2089, 360×720):
+/// Who's That? landing — Figma "Whosthat Home" (322:2089, 360×720).
+/// Layout: hero art · 48 · mode cards form one unit, centred vertically
+/// via [GameLandingBody]. Figma reference positions:
 ///   0    Header (Game Empty)                                   56
 ///   116  Hero art (name baked in, EN / HI)                    180
 ///   378  Create Game (pink,   312×80, radius 24, 6px ledge)
@@ -28,11 +31,8 @@ class WhosThatScreen extends StatelessWidget {
         return WtScaffold(
           t: t,
           onBack: () => Navigator.of(context).pop(),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
-            child: Column(
-              children: [
-                Image.asset(
+          body: GameLandingBody(
+            hero: Image.asset(
                   'assets/home/card_whos_that_${t.hi ? 'hi' : 'en'}.webp',
                   width: 180,
                   height: 180,
@@ -40,7 +40,7 @@ class WhosThatScreen extends StatelessWidget {
                   filterQuality: FilterQuality.high,
                   semanticLabel: t.title,
                 ),
-                const SizedBox(height: 82),
+                variants: [
                 Heartbeat(
                   child: _ModeCard(
                     title: t.createGame,
@@ -64,7 +64,6 @@ class WhosThatScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
           ),
         );
       },

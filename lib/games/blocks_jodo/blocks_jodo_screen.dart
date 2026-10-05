@@ -654,18 +654,24 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   Widget _buildPlayArea() {
     return LayoutBuilder(
       builder: (context, c) {
-        // Board is 340 at 360 wide (10px margins); shrinks on short screens
-        // so the tray always keeps at least 110px.
-        const topGap = 24.0;
-        final boardSize = min(min(340.0, c.maxWidth - 20), c.maxHeight - topGap - 110).clamp(200.0, 340.0).toDouble();
+        // Board + tray are one group, centred vertically between the score
+        // boxes and the bottom bar. Board is 340 at 360 wide (10px margins);
+        // the tray is tall enough for the tallest piece (5 cells) plus 12px
+        // above and below. On short screens the whole group scales down.
+        const gap = 24.0; // board → tray
+        const margin = 16.0; // minimum space above and below the group
+        // trayHeight = 5 × 20k + 4 + 24, with k = boardSize / 340.
+        final byHeight = (c.maxHeight - 2 * margin - gap - 28) / (1 + 100 / 340);
+        final boardSize = min(min(340.0, c.maxWidth - 20), byHeight).clamp(200.0, 340.0).toDouble();
         final inner = boardSize - 10; // 2px border + 3px padding each side
         _cell = (inner - BjBoardPainter.gap * (BjData.size - 1)) / BjData.size;
         final k = boardSize / 340;
         _trayCell = 20 * k;
         _trayGap = 1;
+        final trayHeight = 5 * _trayCell + 4 * _trayGap + 24;
         return Column(
           children: [
-            const SizedBox(height: topGap),
+            const Spacer(),
             ValueListenableBuilder<int>(
               valueListenable: _frame,
               builder: (context, _, child) => Transform.translate(offset: _shakeOffset, child: child),
@@ -685,7 +691,9 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
                 ),
               ),
             ),
-            Expanded(child: _buildTray()),
+            const SizedBox(height: gap),
+            SizedBox(height: trayHeight, child: _buildTray()),
+            const Spacer(),
           ],
         );
       },

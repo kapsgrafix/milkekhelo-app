@@ -402,16 +402,17 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Timer (32 × 1.05) + 12 gap + status (18) + 10 gap + dice (64 + 5).
-        const fixed = 33.6 + 12 + 18 + 10 + 69;
+        // [Timer (32 × 1.05) + 12 gap] + 16 gap + status (18) + 10 gap +
+        // dice (64 + 5). The whole group is centred vertically.
+        final fixed = (widget.timed ? 33.6 + 12 : 0.0) + 16 + 18 + 10 + 69.0;
         final maxByHeight = constraints.maxHeight - fixed - 24;
         final boardSize = (constraints.maxWidth - 20).clamp(160.0, maxByHeight < 160 ? 160.0 : maxByHeight).toDouble();
         return Column(
           children: [
-            const Spacer(flex: 35),
-            // Classic has no timer; an empty slot of the same height keeps
-            // the board exactly where both Figma frames put it (y = 208).
-            if (widget.timed)
+            // Timer (Timer mode) + board + status + dice form one group,
+            // centred in the space between the scores and the bottom bar.
+            const Spacer(),
+            if (widget.timed) ...[
               AnimatedBuilder(
                 animation: _blinkCtrl,
                 builder: (context, child) {
@@ -424,15 +425,14 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
                     ),
                   );
                 },
-              )
-            else
-              const SizedBox(height: 33.6),
-            const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 12),
+            ],
             SizedBox.square(
               dimension: boardSize,
               child: SnlBoard(yellowPos: _pos['yellow']!, redPos: _pos['red']!),
             ),
-            const Spacer(flex: 12),
+            const SizedBox(height: 16),
             SizedBox(
               height: 18,
               child: Padding(
@@ -450,7 +450,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 10),
             _buildDice(),
-            const Spacer(flex: 13),
+            const Spacer(),
           ],
         );
       },

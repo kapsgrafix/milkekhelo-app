@@ -5,6 +5,7 @@ import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/game_landing_body.dart';
 import '../../core/widgets/heartbeat.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
@@ -12,7 +13,9 @@ import 'memory_grid_game_screen.dart';
 import 'mg_data.dart';
 import 'mg_translations.dart';
 
-/// Memory Grid landing page — Figma "Memory Grid L1 V2" (290:1909, 360×720):
+/// Memory Grid landing page — Figma "Memory Grid L1 V2" (290:1909, 360×720).
+/// Layout: hero art · 48 · mode cards form one unit, centred vertically
+/// via [GameLandingBody]. Figma reference positions:
 ///   0    Header (Game Empty)                                     56
 ///   96   Hero art (name baked in, EN/HI)                        180
 ///   327  Solo - Easy  (green,  312×80, radius 16, 5px ledge)
@@ -55,12 +58,9 @@ class MemoryGridHomeScreen extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
-                    child: Column(
-                      children: [
-                        // Hero art (game name is part of the picture): 180×180.
-                        Image.asset(
+                  child: GameLandingBody(
+                    // Hero art (game name is part of the picture): 180×180.
+                    hero: Image.asset(
                           // EN: dedicated 360px hero art (sharp at 2×);
                           // HI: the Hindi home-card art until a 360px version exists.
                           lang == AppLang.hi ? 'assets/home/card_memory_grid_hi.webp' : 'assets/memory_grid/hero_en.webp',
@@ -70,7 +70,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
                           filterQuality: FilterQuality.high,
                           semanticLabel: t.titleA + t.titleB,
                         ),
-                        const SizedBox(height: 51),
+                        variants: [
                         Heartbeat(
                           child: _ModeCard(
                             title: t.soloEasy,
@@ -100,7 +100,6 @@ class MemoryGridHomeScreen extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
                   ),
                 ),
                 const ScreenBottomBar(),
