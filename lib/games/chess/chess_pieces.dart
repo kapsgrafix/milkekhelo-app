@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'chess_engine.dart';
 
@@ -92,9 +93,86 @@ class ChessPieceArt {
         return p;
       });
 
-  /// Paints [piece] (signed: + White, − Black) filling [rect].
+  // ───────── Sprite (Kapil's piece art) ─────────
+  //
+  // assets/chess/pieces.webp — 540 × 180, a 6 × 2 grid of 90 px cells:
+  // columns King, Queen, Rook, Bishop, Knight, Pawn; row 0 White, row 1 Black.
+  // Lossless copy of the supplied PNG. Until it has loaded (first frame),
+  // the vector pieces below are drawn instead.
+
+  static const String spriteAsset = 'assets/chess/pieces.webp';
+  static const double _cellPx = 90;
+  static ui.Image? _sprite;
+  static Future<void>? _loading;
+
+  /// Repaints anything showing pieces once the sprite is ready.
+  static final ValueNotifier<bool> ready = ValueNotifier(false);
+
+  static Future<void> load() => _loading ??= () async {
+        try {
+          final data = await rootBundle.load(spriteAsset);
+          final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+          _sprite = (await codec.getNextFrame()).image;
+          ready.value = true;
+        } catch (_) {
+          _loading = null; // keep the vector pieces; try again next time
+        }
+      }();
+
+  static const Map<int, int> _column = {
+    ChessPiece.king: 0,
+    ChessPiece.queen: 1,
+    ChessPiece.rook: 2,
+    ChessPiece.bishop: 3,
+    ChessPiece.knight: 4,
+    ChessPiece.pawn: 5,
+  };
+
+  /// Paints [piece] (signed: + White, − Black) filling [rect], with a
+  /// subtle drop shadow and contact shadow under its base.
   /// [shadow] = false for tiny icons (captured-pieces tray).
   static void paint(Canvas canvas, Rect rect, int piece, {bool shadow = true, double opacity = 1}) {
+    if (piece == 0 || opacity <= 0) return;
+    final img = _sprite;
+    if (img == null) {
+      _paintVector(canvas, rect, piece, shadow: shadow, opacity: opacity);
+      return;
+    }
+    final col = _column[piece.abs()]!;
+    final row = piece > 0 ? 0 : 1;
+    final src = Rect.fromLTWH(col * _cellPx, row * _cellPx, _cellPx, _cellPx);
+    final k = rect.width / _cellPx;
+    int a(double v) => (v * 255 * opacity).round().clamp(0, 255);
+    if (shadow) {
+      // Soft contact shadow under the base…
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(rect.center.dx, rect.top + 85 * k), width: rect.width * 0.62, height: rect.height * 0.13),
+        Paint()
+          ..color = Color.fromARGB(a(0.30), 0, 0, 0)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2.2 * k + 0.6),
+      );
+      // …and a faint drop shadow of the piece itself.
+      canvas.drawImageRect(
+        img,
+        src,
+        rect.shift(Offset(1.2 * k, 2.4 * k)),
+        Paint()
+          ..filterQuality = FilterQuality.medium
+          ..colorFilter = ColorFilter.mode(Color.fromARGB(a(0.22), 0, 0, 0), BlendMode.srcIn)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.6 * k + 0.4),
+      );
+    }
+    canvas.drawImageRect(
+      img,
+      src,
+      rect,
+      Paint()
+        ..filterQuality = FilterQuality.high
+        ..color = Color.fromARGB(a(1), 255, 255, 255),
+    );
+  }
+
+  static void _paintVector(Canvas canvas, Rect rect, int piece, {bool shadow = true, double opacity = 1}) {
     if (piece == 0 || opacity <= 0) return;
     final type = piece.abs();
     final white = piece > 0;
@@ -193,12 +271,14 @@ class ChessPieceIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       CustomPaint(size: Size.square(size), painter: _IconPainter(piece, shadow));
+
+  // (Repaints when the sprite finishes loading — see _IconPainter.)
 }
 
 class _IconPainter extends CustomPainter {
   final int piece;
   final bool shadow;
-  _IconPainter(this.piece, this.shadow);
+  _IconPainter(this.piece, this.shadow) : super(repaint: ChessPieceArt.ready);
 
   @override
   void paint(Canvas canvas, Size size) => ChessPieceArt.paint(canvas, Offset.zero & size, piece, shadow: shadow);

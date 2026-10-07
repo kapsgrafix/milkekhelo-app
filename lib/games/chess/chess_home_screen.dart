@@ -9,6 +9,7 @@ import '../../core/widgets/game_landing_body.dart';
 import '../../core/widgets/heartbeat.dart';
 import '../../core/widgets/pressable_card.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
+import 'chess_pieces.dart';
 import 'chess_screen.dart';
 import 'chess_translations.dart';
 
@@ -95,6 +96,7 @@ class ChessHomeScreen extends StatelessWidget {
   }
 
   void _start(BuildContext context, {required bool vsBot}) {
+    ChessPieceArt.load(); // warm up the piece sprite
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChessScreen(vsBot: vsBot)));
   }
 }

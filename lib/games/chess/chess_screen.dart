@@ -85,6 +85,12 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   final _rng = Random();
 
   @override
+  void initState() {
+    super.initState();
+    ChessPieceArt.load();
+  }
+
+  @override
   void dispose() {
     _generation++;
     _moveCtrl.dispose();
@@ -158,11 +164,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     setState(() => _animMove = null);
     // 2 Players: turn the pieces to face the player whose turn it is now.
     if (_twoPlayer && !_game.over) {
-      if (_game.whiteToMove) {
-        _viewCtrl.reverse();
-      } else {
-        _viewCtrl.forward();
-      }
+      _viewCtrl.value = _game.whiteToMove ? 0 : 1; // instant, no spin
     }
 
     if (_game.over) {
@@ -509,7 +511,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               _onTapSquare(row * 8 + col);
             },
             child: CustomPaint(
-              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl, _viewCtrl])),
+              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl, _viewCtrl, ChessPieceArt.ready])),
             ),
           ),
         ),
@@ -806,8 +808,8 @@ class _BoardPainter extends CustomPainter {
 
   Rect _scaleRect(Rect r, double k) => Rect.fromCenter(center: r.center, width: r.width * k, height: r.height * k);
 
-  /// 2 Players: all pieces face the player to move (eased half-turn).
-  double get _viewAngle => s._twoPlayer ? pi * Curves.easeInOutCubic.transform(s._viewCtrl.value) : 0;
+  /// 2 Players: all pieces face the player to move (switches instantly).
+  double get _viewAngle => s._twoPlayer ? pi * s._viewCtrl.value : 0;
 
   void _piece(Canvas canvas, Rect square, int piece, {double opacity = 1}) {
     final r = square.deflate(square.width * 0.03);

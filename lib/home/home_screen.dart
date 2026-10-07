@@ -32,7 +32,7 @@ import 'settings_sheet.dart';
 ///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
 ///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
 ///        (square cards filling the row, gap 10, radius 16, 6px ledge)
-///   513  "Classic Games" — Snakes & Ladders · Chess · Memory Grid
+///   513  "Classic Games" — Snakes & Ladders · Memory Grid · Chess
 ///        (square cards filling the row, gap 10, radius 16, 6px ledge)
 ///        32px bottom padding
 /// The content is taller than most screens, so it scrolls.
@@ -177,10 +177,10 @@ class _HomeBody extends StatelessWidget {
                       small(side, 3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
                           () => const SnlHomeScreen()),
                       const SizedBox(width: 10),
-                      small(side, 4, AppColors.first, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
-                      const SizedBox(width: 10),
-                      small(side, 5, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
+                      small(side, 4, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
                           () => const MemoryGridHomeScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 5, AppColors.first, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
                     ],
                   );
                 },
