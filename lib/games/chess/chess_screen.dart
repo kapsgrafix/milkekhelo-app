@@ -489,7 +489,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   // ───────────────────────── Board ─────────────────────────
 
   /// Width of the board art's frame, as a fraction of the board size.
-  static const double _frame = 14 / 720;
+  static const double _frame = 16 / 720; // grid 16 → 704 px: eight 86 px squares
 
   Widget _board(ChessText t, double size) {
     return Stack(
@@ -503,7 +503,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             child: Image.asset('assets/chess/board.webp', fit: BoxFit.fill, filterQuality: FilterQuality.medium),
           ),
         ),
-        // The board art has a wooden frame: the 8 × 8 grid sits 14/720 of
+        // The board art has a wooden frame: the 8 × 8 grid sits 16/720 of
         // the width in from each edge, so pieces, highlights and taps use
         // that inner square.
         Positioned.fill(
