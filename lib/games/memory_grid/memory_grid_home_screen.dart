@@ -228,7 +228,7 @@ class MgHowToPlaySheet extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF12442B), Color(0xFF0A2418)],
+          colors: [Color(0xFF1E1040), Color(0xFF0D2040)], // same sheet as My First
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),

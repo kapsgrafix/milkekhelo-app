@@ -48,7 +48,7 @@ class ChessScreen extends StatefulWidget {
 }
 
 class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin {
-  static const Color _bg = AppColors.screenCoral; // #3D1C0F
+  static const Color _bg = Color(0xFF0F3D28); // background/screen-green
 
   late ChessGame _game = ChessGame();
   int? _selected;
@@ -333,7 +333,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   Widget _table(ChessText t) {
     return LayoutBuilder(
       builder: (context, c) {
-        const barH = 58.0, gap = 12.0;
+        const barH = 58.0, gap = 24.0;
         final size = min(c.maxWidth, c.maxHeight - 2 * barH - 2 * gap - 16).clamp(200.0, 720.0).toDouble();
         final top = _playerBar(t, white: false);
         return Center(
@@ -388,12 +388,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             height: 44,
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: ring, width: 2),
             ),
             child: Container(
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: avatarBg, borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: avatarBg),
               child: Text(avatar, style: const TextStyle(fontSize: 21, height: 1.1)),
             ),
           ),
@@ -489,6 +488,9 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   // ───────────────────────── Board ─────────────────────────
 
+  /// Width of the board art's frame, as a fraction of the board size.
+  static const double _frame = 14 / 720;
+
   Widget _board(ChessText t, double size) {
     return Stack(
       clipBehavior: Clip.none,
@@ -501,11 +503,18 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             child: Image.asset('assets/chess/board.webp', fit: BoxFit.fill, filterQuality: FilterQuality.medium),
           ),
         ),
+        // The board art has a wooden frame: the 8 × 8 grid sits 14/720 of
+        // the width in from each edge, so pieces, highlights and taps use
+        // that inner square.
         Positioned.fill(
+          left: size * _frame,
+          top: size * _frame,
+          right: size * _frame,
+          bottom: size * _frame,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapUp: (d) {
-              final cell = size / 8;
+              final cell = size * (1 - 2 * _frame) / 8;
               final col = (d.localPosition.dx / cell).floor().clamp(0, 7);
               final row = (d.localPosition.dy / cell).floor().clamp(0, 7);
               _onTapSquare(row * 8 + col);
@@ -559,7 +568,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     final card = Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: const Color(0xF22A140A),
+        color: const Color(0xF20A2A1B),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.brandYellow, width: 2),
       ),
@@ -663,7 +672,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 350),
       builder: (context, v, child) => Opacity(opacity: v, child: child),
       child: Container(
-        color: const Color(0xD9180A04),
+        color: const Color(0xD9061A10),
         padding: const EdgeInsets.symmetric(horizontal: 32),
         alignment: Alignment.center,
         child: ConstrainedBox(
@@ -1017,7 +1026,7 @@ class _HowToSheet extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF4A2412), Color(0xFF2A1309)],
+            colors: [Color(0xFF12442B), Color(0xFF0A2418)],
           ),
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -1044,7 +1053,7 @@ class _HowToSheet extends StatelessWidget {
                       width: 26,
                       height: 26,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFF7A45)),
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF33C481)),
                       child: Text('${i + 1}', style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(width: 14),
@@ -1067,9 +1076,9 @@ class _HowToSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0x1AFF7A45),
+                  color: const Color(0x1A33C481),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0x40FF7A45)),
+                  border: Border.all(color: const Color(0x4033C481)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

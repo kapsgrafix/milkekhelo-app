@@ -168,7 +168,7 @@ class _HomeBody extends StatelessWidget {
               _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games'),
               const SizedBox(height: 8),
               // Three classic games — same full-width square cards as the
-              // Party row; Chess uses the My First purple.
+              // Party row; Memory Grid uses the My First purple, Chess the green.
               LayoutBuilder(
                 builder: (context, c) {
                   final side = (c.maxWidth - 2 * 10) / 3;
@@ -177,10 +177,10 @@ class _HomeBody extends StatelessWidget {
                       small(side, 3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
                           () => const SnlHomeScreen()),
                       const SizedBox(width: 10),
-                      small(side, 4, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
+                      small(side, 4, AppColors.first, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
                           () => const MemoryGridHomeScreen()),
                       const SizedBox(width: 10),
-                      small(side, 5, AppColors.first, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
+                      small(side, 5, AppColors.memoryGrid, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
                     ],
                   );
                 },

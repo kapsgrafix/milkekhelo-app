@@ -27,20 +27,20 @@ class MgData {
   static const int duelHintMs = 1200;
 
   // Root tokens.
-  static const Color accent = Color(0xFF16A34A);
-  static const Color accent2 = Color(0xFF22C55E);
+  static const Color accent = Color(0xFF6A4FC2); // module/purple (My First theme)
+  static const Color accent2 = Color(0xFF8B6CF0);
   static const Color gold = Color(0xFFFBBF24);
   static const Color green = Color(0xFF15A34A); // correct-tap
   static const Color red = Color(0xFFF87171); // wrong-tap
   static const Color dotLit = Color(0xFF4ADE80);
   static const Color dotIdle = Color(0x33FFFFFF); // rgba(255,255,255,.2)
 
-  static const Color screenBg = Color(0xFF0F3D28); // background/screen-green
+  static const Color screenBg = Color(0xFF1B0F3D); // background/screen-purple — same as My First
 
   // ---- Figma (Memory Grid L1 / L2 / L3) tokens -------------------------
-  static const Color titleAccent = Color(0xFF6EE0AC); // "Grid", section lines
+  static const Color titleAccent = Color(0xFFC3B0F5); // module/purple-light
   static const Color tileEmpty = Color(0x59000000); // background/slot-empty
-  static const Color tileLit = Color(0xFF33C481); // module/green
+  static const Color tileLit = Color(0xFF8B6CF0); // purple (My First theme)
   static const Color tileWrong = Color(0xFFFF7A45); // module/coral
   static const Color tileNumber = Color(0xFF1B2340); // text/on-light
 

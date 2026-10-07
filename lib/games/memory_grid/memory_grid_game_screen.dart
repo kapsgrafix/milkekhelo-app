@@ -726,7 +726,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                       ..style = PaintingStyle.stroke
                       ..strokeWidth = 7
                       ..strokeJoin = StrokeJoin.round
-                      ..color = const Color(0xFF0A3D20),
+                      ..color = const Color(0xFF2A1A5E),
                     shadows: const [Shadow(color: Color(0x99000000), blurRadius: 12, offset: Offset(0, 4))],
                   ),
                 ),
@@ -746,7 +746,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   Widget _buildGameOver(MgText t) {
     return Positioned.fill(
       child: Container(
-        color: const Color(0xF20A2A1B),
+        color: const Color(0xF2140A30),
         alignment: Alignment.center,
         child: SingleChildScrollView(
           child: Padding(

@@ -22,7 +22,7 @@ import 'chess_translations.dart';
 class ChessHomeScreen extends StatelessWidget {
   const ChessHomeScreen({super.key});
 
-  static const Color screenBg = AppColors.screenCoral; // #3D1C0F
+  static const Color screenBg = Color(0xFF0F3D28); // background/screen-green
 
   @override
   Widget build(BuildContext context) {
