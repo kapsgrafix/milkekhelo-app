@@ -43,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     precacheImage(const AssetImage('assets/home/wordmark.webp'), context);
     precacheImage(const AssetImage('assets/home/banner_bg.webp'), context);
     final lang = AppLanguage.instance.value == AppLang.hi ? 'hi' : 'en';
-    for (final g in const ['memory_grid', 'whos_that', 'my_first', 'snl', 'blocks_jodo', 'thank_you']) {
+    for (final g in const ['memory_grid', 'whos_that', 'my_first', 'snl', 'chess', 'blocks_jodo', 'thank_you']) {
       precacheImage(AssetImage('assets/home/card_${g}_$lang.webp'), context);
     }
   }

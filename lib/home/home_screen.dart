@@ -13,6 +13,7 @@ import '../core/widgets/heartbeat.dart';
 import '../core/widgets/language_toggle.dart';
 import '../core/widgets/pressable_card.dart';
 import '../games/blocks_jodo/blocks_jodo_screen.dart';
+import '../games/chess/chess_home_screen.dart';
 import '../games/first/first_screen.dart';
 import '../games/memory_grid/memory_grid_home_screen.dart';
 import '../games/snakes_and_ladders/snl_home_screen.dart';
@@ -31,8 +32,8 @@ import 'settings_sheet.dart';
 ///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
 ///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
 ///        (square cards filling the row, gap 10, radius 16, 6px ledge)
-///   513  "Classic Games" — Snakes & Ladders · Memory Grid
-///        (155×148 cards, gap 10, radius 24, 6px ledge)
+///   513  "Classic Games" — Snakes & Ladders · Chess · Memory Grid
+///        (square cards filling the row, gap 10, radius 16, 6px ledge)
 ///        32px bottom padding
 /// The content is taller than most screens, so it scrolls.
 ///
@@ -100,7 +101,7 @@ class _HomeBody extends StatelessWidget {
     if (_precached) return;
     _precached = true;
     precacheImage(const AssetImage('assets/home/banner_bg.webp'), context);
-    for (final g in const ['blocks_jodo', 'my_first', 'whos_that', 'thank_you', 'snl', 'memory_grid']) {
+    for (final g in const ['blocks_jodo', 'my_first', 'whos_that', 'thank_you', 'snl', 'chess', 'memory_grid']) {
       for (final l in const ['en', 'hi']) {
         precacheImage(AssetImage('assets/home/card_${g}_$l.webp'), context);
       }
@@ -127,23 +128,6 @@ class _HomeBody extends StatelessWidget {
           radius: 16,
           artSize: side * 0.84,
           artTop: side * 0.08,
-          label: label,
-          onTap: () => _push(context, screen()),
-        ),
-      );
-    }
-
-    Widget big(int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
-      // Figma: 155×148 card, radius 24, 120px art 14px from the top.
-      return Expanded(
-        child: _GameModuleCard(
-          index: index,
-          palette: palette,
-          image: 'assets/home/card_${game}_$lang.webp',
-          faceHeight: 148,
-          radius: 24,
-          artSize: 120,
-          artTop: 14,
           label: label,
           onTap: () => _push(context, screen()),
         ),
@@ -183,12 +167,23 @@ class _HomeBody extends StatelessWidget {
               const SizedBox(height: 24 - _GameModuleCard.ledge),
               _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games'),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  big(3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders', () => const SnlHomeScreen()),
-                  const SizedBox(width: 10),
-                  big(4, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid', () => const MemoryGridHomeScreen()),
-                ],
+              // Three classic games — same full-width square cards as the
+              // Party row; Chess uses the Thank You orange.
+              LayoutBuilder(
+                builder: (context, c) {
+                  final side = (c.maxWidth - 2 * 10) / 3;
+                  return Row(
+                    children: [
+                      small(side, 3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
+                          () => const SnlHomeScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 4, AppColors.thankYou, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 5, AppColors.memoryGrid, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
+                          () => const MemoryGridHomeScreen()),
+                    ],
+                  );
+                },
               ),
             ],
           ),

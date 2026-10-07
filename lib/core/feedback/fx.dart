@@ -104,6 +104,18 @@ class Fx {
     _pattern(const [_Haptic.heavy, _Haptic.heavy], 150);
   }
 
+  // ---- Chess -----------------------------------------------------------------
+  static void chessMove() => _go(Sfx.blockPlace, _Haptic.light);
+  static void chessCapture() {
+    _audio.play(Sfx.lineClear);
+    _pattern(const [_Haptic.medium, _Haptic.light], 80);
+  }
+
+  static void chessCheck() {
+    _audio.play(Sfx.go);
+    _pattern(const [_Haptic.heavy, _Haptic.medium], 90);
+  }
+
   // ---- Game over -------------------------------------------------------------
   static void win() {
     _audio.duckMusic();

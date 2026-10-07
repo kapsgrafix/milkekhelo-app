@@ -26,6 +26,7 @@ flutter:
     - assets/home/
     - assets/splash/
     - assets/snakes_and_ladders/
+    - assets/chess/
     - assets/memory_grid/
     - assets/audio/sfx/
     - assets/audio/music/

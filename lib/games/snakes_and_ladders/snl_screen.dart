@@ -66,6 +66,9 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   bool _showEndScreen = false;
   String? _winner; // 'yellow' | 'red' | null (draw)
 
+  /// Colour of the goti that just reached 100 (plays the win burst).
+  String? _celebrate100;
+
   late final AnimationController _blinkCtrl =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
   late final AnimationController _diceShakeCtrl =
@@ -113,6 +116,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _msgValue = 0;
       _showEndScreen = false;
       _winner = null;
+      _celebrate100 = null;
     });
     _runCountdown();
   }
@@ -234,8 +238,13 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       if (!mounted) return;
       _finishTurn();
     } else if (current == 100) {
-      setState(() => _msgKind = _MsgKind.reached100);
-      await Future.delayed(const Duration(milliseconds: 600));
+      // Instant celebration on square 100, then the result screen.
+      Fx.roundWin();
+      setState(() {
+        _msgKind = _MsgKind.reached100;
+        _celebrate100 = color;
+      });
+      await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
       _endGame(winner: color);
     } else {
@@ -430,7 +439,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
             ],
             SizedBox.square(
               dimension: boardSize,
-              child: SnlBoard(yellowPos: _pos['yellow']!, redPos: _pos['red']!),
+              child: SnlBoard(yellowPos: _pos['yellow']!, redPos: _pos['red']!, celebrate100: _celebrate100),
             ),
             const SizedBox(height: 16),
             SizedBox(
