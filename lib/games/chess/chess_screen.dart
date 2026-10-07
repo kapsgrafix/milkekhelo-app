@@ -75,6 +75,10 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   String _banner = '';
   bool _bannerFlip = false;
 
+  // 2 Players: every piece turns to face whoever is to move
+  // (0 = White's view, 1 = Black's view — pieces rotated 180°).
+  late final AnimationController _viewCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+
   // Game over: king topples, then the result card.
   late final AnimationController _endCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
   final _confetti = GlobalKey<_ConfettiState>();
@@ -88,6 +92,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     _checkPulse.dispose();
     _bannerCtrl.dispose();
     _endCtrl.dispose();
+    _viewCtrl.dispose();
     super.dispose();
   }
 
@@ -151,6 +156,14 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (!mounted || gen != _generation) return;
     if (m.isCapture) _burst(m);
     setState(() => _animMove = null);
+    // 2 Players: turn the pieces to face the player whose turn it is now.
+    if (_twoPlayer && !_game.over) {
+      if (_game.whiteToMove) {
+        _viewCtrl.reverse();
+      } else {
+        _viewCtrl.forward();
+      }
+    }
 
     if (_game.over) {
       _gameOver();
@@ -193,7 +206,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     }
     if (!mounted || gen != _generation) return;
     final wanted = ChessMove.decode(reply);
-    final legal = _game.legalMoves;
+    final legal = _game.playableMoves;
     final m = legal.firstWhere((x) => x == wanted, orElse: () => legal.first);
     setState(() => _thinking = false);
     await _play(m);
@@ -205,10 +218,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     final mate = r == ChessResult.whiteWins || r == ChessResult.blackWins;
     if (mate) {
       _checkPulse.value = 1;
-      _banner = ChessText(AppLanguage.instance.value).checkmate;
+      final tt = ChessText(AppLanguage.instance.value);
+      _banner = _game.kingCaptured ? tt.kingCaptured : tt.checkmate;
       _bannerFlip = _twoPlayer && r == ChessResult.whiteWins; // loser (Black) reads it
       _bannerCtrl.forward(from: 0);
-      _endCtrl.forward(from: 0);
+      if (!_game.kingCaptured) _endCtrl.forward(from: 0); // a taken king is gone already
     }
     final humanLost = widget.vsBot && r == ChessResult.blackWins;
     Future.delayed(Duration(milliseconds: mate ? 900 : 300), () {
@@ -244,6 +258,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _checkPulse.value = 0;
       _bannerCtrl.value = 0;
       _endCtrl.value = 0;
+      _viewCtrl.value = 0;
     });
   }
 
@@ -359,26 +374,26 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       }
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: active ? (inCheck ? const Color(0xFFFF5A5A) : AppColors.brandYellow) : AppColors.borderDefault,
-          width: active ? 2 : 1,
-        ),
-      ),
+    final ring = active ? (inCheck ? const Color(0xFFFF5A5A) : AppColors.brandYellow) : Colors.transparent;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: avatarBg, borderRadius: BorderRadius.circular(12)),
-            child: Text(avatar, style: const TextStyle(fontSize: 22, height: 1.1)),
+          // Avatar; a coloured ring marks whose turn it is.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 44,
+            height: 44,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ring, width: 2),
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: avatarBg, borderRadius: BorderRadius.circular(10)),
+              child: Text(avatar, style: const TextStyle(fontSize: 21, height: 1.1)),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -401,18 +416,21 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
                       height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: white ? ChessPieceArt.whiteTop : ChessPieceArt.blackBottom,
-                        border: Border.all(color: white ? ChessPieceArt.whiteEdge : ChessPieceArt.blackEdge, width: 1),
+                        color: white ? ChessPieceArt.whiteTop : ChessPieceArt.blackTop,
+                        border: Border.all(color: ChessPieceArt.blackEdge, width: 1),
                       ),
                     ),
+                    if (status != null) ...[
+                      const SizedBox(width: 8),
+                      _statusChip(status, inCheck, thinking: !white && widget.vsBot && _thinking),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 SizedBox(height: 18, child: _capturedRow(taken, lead)),
               ],
             ),
           ),
-          if (status != null) _statusChip(status, inCheck, thinking: !white && widget.vsBot && _thinking),
         ],
       ),
     );
@@ -459,7 +477,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   Widget _statusChip(String text, bool danger, {bool thinking = false}) {
     final color = danger ? const Color(0xFFFF5A5A) : AppColors.brandYellow;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(color: color.withAlpha(40), borderRadius: BorderRadius.circular(999)),
       child: thinking
           ? _ThinkingText(text: text, color: color)
@@ -491,7 +509,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               _onTapSquare(row * 8 + col);
             },
             child: CustomPaint(
-              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl])),
+              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl, _viewCtrl])),
             ),
           ),
         ),
@@ -594,7 +612,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     String emoji, title, sub;
     if (mate) {
       final whiteWon = r == ChessResult.whiteWins;
-      title = t.checkmate;
+      title = _game.kingCaptured ? t.kingCaptured : t.checkmate;
       if (widget.vsBot) {
         emoji = whiteWon ? '🏆' : '🤖';
         sub = whiteWon ? t.youWin : t.botWins;
@@ -788,27 +806,29 @@ class _BoardPainter extends CustomPainter {
 
   Rect _scaleRect(Rect r, double k) => Rect.fromCenter(center: r.center, width: r.width * k, height: r.height * k);
 
+  /// 2 Players: all pieces face the player to move (eased half-turn).
+  double get _viewAngle => s._twoPlayer ? pi * Curves.easeInOutCubic.transform(s._viewCtrl.value) : 0;
+
   void _piece(Canvas canvas, Rect square, int piece, {double opacity = 1}) {
-    final r = square.deflate(square.width * 0.05);
-    final flip = s._twoPlayer && piece < 0;
-    if (flip) {
+    final r = square.deflate(square.width * 0.03);
+    final angle = _viewAngle;
+    if (angle != 0) {
       canvas.save();
       canvas.translate(r.center.dx, r.center.dy);
-      canvas.rotate(pi);
+      canvas.rotate(angle);
       canvas.translate(-r.center.dx, -r.center.dy);
     }
     ChessPieceArt.paint(canvas, r, piece, opacity: opacity);
-    if (flip) canvas.restore();
+    if (angle != 0) canvas.restore();
   }
 
   /// Checkmated king tips over onto its side.
   void _topple(Canvas canvas, Rect square, int piece, double v) {
     final e = Curves.bounceOut.transform(v);
-    final r = square.deflate(square.width * 0.05);
-    final flip = s._twoPlayer && piece < 0;
+    final r = square.deflate(square.width * 0.03);
     canvas.save();
     canvas.translate(r.center.dx, r.center.dy);
-    if (flip) canvas.rotate(pi);
+    canvas.rotate(_viewAngle);
     canvas.translate(0, r.height * 0.35);
     canvas.rotate(-pi / 2 * 0.92 * e);
     canvas.translate(0, -r.height * 0.35);
@@ -834,7 +854,7 @@ class _BoardPainter extends CustomPainter {
     canvas.translate(c.dx, c.dy);
     canvas.rotate(t * 1.4);
     canvas.translate(-c.dx, -c.dy);
-    ChessPieceArt.paint(canvas, _scaleRect(square.deflate(square.width * 0.05), k), piece, shadow: false, opacity: k);
+    ChessPieceArt.paint(canvas, _scaleRect(square.deflate(square.width * 0.03), k), piece, shadow: false, opacity: k);
     canvas.restore();
     // Shards in the taken piece's colours.
     final white = piece > 0;

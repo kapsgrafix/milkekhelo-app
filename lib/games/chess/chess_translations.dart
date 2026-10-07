@@ -29,6 +29,7 @@ class ChessText {
   // Moments
   String get check => hi ? 'शह!' : 'Check!';
   String get checkmate => hi ? 'शह और मात!' : 'Checkmate!';
+  String get kingCaptured => hi ? 'राजा मारा गया!' : 'King Captured!';
   String get promoteTo => hi ? 'प्यादे को बदलें' : 'Promote pawn';
 
   // Results
@@ -50,18 +51,18 @@ class ChessText {
           ['मोहरा चुनें', 'अपने किसी मोहरे पर टैप करें — जहाँ वह जा सकता है वहाँ बिंदु दिखेंगे।'],
           ['चाल चलें', 'किसी बिंदु पर टैप करें। घेरे वाला खाना मतलब वहाँ विरोधी का मोहरा कटेगा।'],
           ['मोहरे काटें', 'कटे हुए मोहरे प्रोफ़ाइल के पास दिखते हैं, साथ में आपकी बढ़त भी।'],
-          ['शह से बचें', 'राजा पर हमला होने पर उसका खाना लाल हो जाता है — उसे बचाना ज़रूरी है।'],
-          ['मात दें', 'विरोधी राजा को ऐसी शह दें जिससे वह बच न सके — आप जीत गए!'],
+          ['राजा को बचाएं', 'राजा पर हमला होते ही उसका खाना लाल हो जाता है। अगर उसे नहीं बचाया, तो विरोधी उसे मार सकता है।'],
+          ['जीतें', 'विरोधी का राजा मार दें या उसे ऐसी मात दें जिससे वह बच न सके — आप जीत गए!'],
         ]
       : const [
           ['Pick a Piece', 'Tap one of your pieces — dots show every square it can move to.'],
           ['Make a Move', 'Tap a dot to move. A ringed square means you capture the piece there.'],
           ['Collect Captures', 'Captured pieces line up next to the profile, with your material lead.'],
-          ['Escape Check', "When a king is attacked its square turns red — it must be saved."],
-          ['Checkmate to Win', "Trap the other king so it can't escape check, and you win!"],
+          ['Guard Your King', 'When a king is attacked its square turns red. Leave it there and the other player can capture it!'],
+          ['Win the Game', "Capture the other king, or checkmate it so it can't escape — and you win!"],
         ];
   String get goalTitle => hi ? '🎯 खेल का मकसद' : '🎯 Goal of the Game';
   String get goalText => hi
-      ? 'सफ़ेद पहले चलता है। विरोधी के राजा को शह और मात दें।'
-      : 'White moves first. Checkmate the other king to win.';
+      ? 'सफ़ेद पहले चलता है। दोस्ताना नियम: कोई भी मोहरा अपनी चाल चल सकता है — राजा को खुला छोड़ा तो वह मारा जा सकता है।'
+      : 'White moves first. Friendly rules: any piece can make its normal move — but leave your king open and it can be captured.';
 }

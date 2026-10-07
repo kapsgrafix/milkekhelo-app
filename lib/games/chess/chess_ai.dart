@@ -9,10 +9,16 @@ import 'chess_engine.dart';
 /// and find short mates, gentle enough for casual players. To keep games
 /// varied it picks at random among moves within 15 centipawns of its best.
 ///
+/// Casual rules: if the player leaves their king exposed, the bot takes it.
+///
 /// [chessBotMove] is a top-level function so it can run in a background
 /// isolate via `compute` — the board keeps animating while the bot thinks.
 List<int> chessBotMove(List<int> encodedPosition) {
   final p = ChessPosition.decode(encodedPosition);
+  // Casual rules: if the opponent left their king open, take it and win.
+  for (final m in p.pseudoMoves()) {
+    if (m.captured.abs() == ChessPiece.king) return m.encode();
+  }
   final m = _Bot(Random()).best(p);
   return m.encode();
 }

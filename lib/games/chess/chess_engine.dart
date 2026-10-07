@@ -8,6 +8,12 @@
 /// Move generation was verified square-for-square against the standard
 /// "perft" counts (start position to depth 4, Kiwipete and three other
 /// tricky positions — castling, en passant, promotion, pins and checks).
+///
+/// The app plays CASUAL (over-the-board, "friendly") rules — see
+/// [ChessGame]: every piece may make any move its pattern allows, even into
+/// check or out of a pin, and whoever captures the enemy king wins. The
+/// strict legal-move generator is still used to spot checkmate (game ends
+/// at once) and by the bot.
 library;
 
 class ChessPiece {
@@ -151,7 +157,10 @@ class ChessPosition {
 
   // ───────── move generation ─────────
 
-  List<ChessMove> pseudoMoves() {
+  /// Every move each piece's pattern allows (ignores check). With
+  /// [relaxedCastling], castling only needs the rights and an empty path —
+  /// it may start from, pass through or land in check (casual rules).
+  List<ChessMove> pseudoMoves({bool relaxedCastling = false}) {
     final out = <ChessMove>[];
     final w = whiteToMove, sg = w ? 1 : -1;
     for (var sq = 0; sq < 64; sq++) {
@@ -183,7 +192,7 @@ class ChessPosition {
           final tv = board[rr * 8 + cc];
           if (tv == 0 || (tv > 0) != w) out.add(ChessMove(sq, rr * 8 + cc, captured: tv));
         }
-        if (t == ChessPiece.king) _castles(out, sq);
+        if (t == ChessPiece.king) _castles(out, sq, relaxed: relaxedCastling);
       } else {
         final dirs = t == ChessPiece.bishop ? _diag : (t == ChessPiece.rook ? _orth : _all);
         for (final d in dirs) {
@@ -215,17 +224,18 @@ class ChessPosition {
     }
   }
 
-  void _castles(List<ChessMove> out, int sq) {
+  void _castles(List<ChessMove> out, int sq, {bool relaxed = false}) {
     final w = whiteToMove, home = w ? 60 : 4;
     if (sq != home) return;
     final ki = w ? 0 : 2, qi = w ? 1 : 3, rook = w ? ChessPiece.rook : -ChessPiece.rook;
-    if (inCheck(w)) return;
+    if (!relaxed && inCheck(w)) return;
+    bool safe(int s) => relaxed || !attacked(s, !w);
     if (castling[ki] &&
         board[home + 1] == 0 &&
         board[home + 2] == 0 &&
         board[home + 3] == rook &&
-        !attacked(home + 1, !w) &&
-        !attacked(home + 2, !w)) {
+        safe(home + 1) &&
+        safe(home + 2)) {
       out.add(ChessMove(home, home + 2, castle: true));
     }
     if (castling[qi] &&
@@ -233,8 +243,8 @@ class ChessPosition {
         board[home - 2] == 0 &&
         board[home - 3] == 0 &&
         board[home - 4] == rook &&
-        !attacked(home - 1, !w) &&
-        !attacked(home - 2, !w)) {
+        safe(home - 1) &&
+        safe(home - 2)) {
       out.add(ChessMove(home, home - 2, castle: true));
     }
   }
@@ -303,34 +313,52 @@ class ChessPosition {
   }
 }
 
-/// A whole game: position + history (for repetition) + result.
+/// A whole game under CASUAL rules: position + history + result.
+///
+///   • Moves: any pattern move ([ChessPosition.pseudoMoves], relaxed
+///     castling) — you may move into check or leave your king exposed.
+///   • Capturing the enemy king wins on the spot ([kingCaptured]).
+///   • Checkmate (no move can save the king) also ends the game at once.
+///   • Draws: stalemate, bare kings / not enough material, 50 moves without
+///     a capture or pawn move, or the same position three times.
 class ChessGame {
   ChessPosition position = ChessPosition.initial();
   final List<ChessMove> moves = [];
   final Map<String, int> _seen = {};
   ChessResult result = ChessResult.none;
-  List<ChessMove> _legal = const [];
+  List<ChessMove> _playable = const [];
+
+  /// The game ended because a king was taken (not by checkmate).
+  bool kingCaptured = false;
 
   ChessGame() {
     _seen[position.key] = 1;
-    _legal = position.legalMoves();
+    _playable = position.pseudoMoves(relaxedCastling: true);
   }
 
   bool get over => result != ChessResult.none;
   bool get whiteToMove => position.whiteToMove;
-  List<ChessMove> get legalMoves => _legal;
+  List<ChessMove> get playableMoves => _playable;
   ChessMove? get lastMove => moves.isEmpty ? null : moves.last;
   bool get inCheck => position.inCheck();
 
-  List<ChessMove> movesFrom(int sq) => [for (final m in _legal) if (m.from == sq) m];
+  List<ChessMove> movesFrom(int sq) => [for (final m in _playable) if (m.from == sq) m];
 
   void apply(ChessMove m) {
+    final moverWhite = position.whiteToMove;
     position = position.play(m);
     moves.add(m);
+    if (m.captured.abs() == ChessPiece.king) {
+      kingCaptured = true;
+      result = moverWhite ? ChessResult.whiteWins : ChessResult.blackWins;
+      _playable = const [];
+      return;
+    }
     final k = position.key;
     _seen[k] = (_seen[k] ?? 0) + 1;
-    _legal = position.legalMoves();
-    if (_legal.isEmpty) {
+    _playable = position.pseudoMoves(relaxedCastling: true);
+    final safe = position.legalMoves();
+    if (safe.isEmpty) {
       result = position.inCheck()
           ? (position.whiteToMove ? ChessResult.blackWins : ChessResult.whiteWins)
           : ChessResult.stalemate;
@@ -343,3 +371,4 @@ class ChessGame {
     }
   }
 }
+

@@ -5,21 +5,21 @@ import 'package:flutter/material.dart';
 import 'chess_engine.dart';
 
 /// The 12 chess pieces, drawn in code (no image files). Each piece is a few
-/// vector shapes on a 100 × 100 grid, painted back to front: a soft
-/// gradient fill with a fine outline — dark on the ivory White pieces, light
-/// on the ebony Black pieces — so both read clearly on light and dark wood.
-/// A small blurred shadow lifts each piece off the board.
+/// vector shapes on a 100 × 100 grid, painted back to front, in the clean
+/// "flat" style of Kapil's reference (chess.com-like): White = near-white
+/// fill, Black = charcoal fill, both with a crisp black outline and a very
+/// light top-to-bottom shade. A small blurred shadow lifts each piece.
 enum _Kind { body, line, dot }
 
 class ChessPieceArt {
   ChessPieceArt._();
 
-  static const Color whiteTop = Color(0xFFFFFDF7);
-  static const Color whiteBottom = Color(0xFFE4D3B4);
-  static const Color whiteEdge = Color(0xFF3A2416);
-  static const Color blackTop = Color(0xFF57493F);
-  static const Color blackBottom = Color(0xFF1C1512);
-  static const Color blackEdge = Color(0xFFF3E7D2);
+  static const Color whiteTop = Color(0xFFFFFFFF);
+  static const Color whiteBottom = Color(0xFFE4E4E4);
+  static const Color whiteEdge = Color(0xFF2A2A2A);
+  static const Color blackTop = Color(0xFF5E5A58);
+  static const Color blackBottom = Color(0xFF3E3B3A);
+  static const Color blackEdge = Color(0xFF111111); // black outline only
 
   static const Map<int, List<(String, _Kind)>> _src = {
     // pawn
@@ -128,12 +128,12 @@ class ChessPieceArt {
     final edge = (white ? whiteEdge : blackEdge).withAlpha(a(1));
     final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.6
+      ..strokeWidth = 3.2
       ..strokeJoin = StrokeJoin.round
       ..color = edge;
     final line = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
+      ..strokeWidth = 2.8
       ..strokeCap = StrokeCap.round
       ..color = edge;
     for (final s in _shapes(type)) {
