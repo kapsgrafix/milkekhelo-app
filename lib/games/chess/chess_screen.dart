@@ -85,10 +85,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   final _confetti = GlobalKey<_ConfettiState>();
   final _rng = Random();
 
-  /// Save-progress sign-in nudge: once either player has made 4 moves,
-  /// when the board is quiet and it's a human's turn.
-  final _nudge = SaveProgressNudge();
-
   @override
   void initState() {
     super.initState();
@@ -183,19 +179,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _bannerFlip = _twoPlayer && !_game.whiteToMove;
       _bannerCtrl.forward(from: 0);
     }
-    if (widget.vsBot && !_game.whiteToMove) {
-      _botTurn();
-      return;
-    }
-    _maybeNudge(gen);
-  }
-
-  Future<void> _maybeNudge(int gen) async {
-    if (!_nudge.ready(progressed: _game.moves.length >= 7)) return;
-    await Future.delayed(const Duration(milliseconds: 450)); // let the move settle
-    if (!mounted || gen != _generation || _game.over || _busy) return;
-    if (!_nudge.ready(progressed: true)) return;
-    await _nudge.show(context, background: _bg);
+    if (widget.vsBot && !_game.whiteToMove) _botTurn();
   }
 
   void _burst(ChessMove m) {
@@ -307,7 +291,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLang>(
+    return SaveProgressGate(
+      // Save Progress overlay on leaving, once either player has made 4 moves.
+      progressed: () => _game.moves.length >= 7,
+      background: _bg,
+      child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = ChessText(lang);
@@ -329,7 +317,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
                       bottom: false,
                       child: GameHeader(
                         title: '',
-                        onBack: () => Navigator.of(context).pop(),
+                        onBack: () => Navigator.of(context).maybePop(),
                         onHelp: () => ChessScreen.showHowToPlay(context, t),
                       ),
                     ),
@@ -344,6 +332,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           ),
         );
       },
+    ),
     );
   }
 
@@ -680,7 +669,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           label: t.backHome,
           width: double.infinity,
           style: ChunkyButtonStyle.secondary,
-          onTap: () => Navigator.of(context).pop(),
+          onTap: () => Navigator.of(context).maybePop(),
         ),
       ],
     );

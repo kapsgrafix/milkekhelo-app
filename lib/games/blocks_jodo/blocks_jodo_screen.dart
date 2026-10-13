@@ -200,18 +200,6 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     _after(350, _deal);
   }
 
-  /// Save-progress sign-in nudge: when the tray is empty (a calm moment
-  /// between hands), once the score is 150+.
-  final _nudge = SaveProgressNudge();
-
-  Future<void> _dealAfterNudge() async {
-    if (!_gameOver && !_busy && _nudge.ready(progressed: _score >= 150)) {
-      await _nudge.show(context, background: BjData.screenBg);
-      if (!mounted || _gameOver) return;
-    }
-    _deal();
-  }
-
   void _deal() {
     setState(() => _tray = List<BjPiece?>.of(_dealer.deal(_board)));
     _refill.forward(from: 0);
@@ -335,7 +323,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     }
 
     if (_tray.every((p) => p == null)) {
-      _after(260, _dealAfterNudge);
+      _after(260, _deal);
     } else {
       _after(lines.isEmpty ? 250 : 600, _checkMoves);
     }
@@ -546,7 +534,11 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLang>(
+    return SaveProgressGate(
+      // Save Progress overlay on leaving, once the score is 150+.
+      progressed: () => _score >= 150,
+      background: BjData.screenBg,
+      child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = BjText(lang);
@@ -567,7 +559,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
                   children: [
                     SafeArea(
                       bottom: false,
-                      child: GameHeader(title: '', onBack: () => Navigator.of(context).pop(), onHelp: () => _openHow(t)),
+                      child: GameHeader(title: '', onBack: () => Navigator.of(context).maybePop(), onHelp: () => _openHow(t)),
                     ),
                     _buildScoreSection(t),
                     Expanded(child: _buildPlayArea()),
@@ -587,6 +579,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
           ),
         );
       },
+    ),
     );
   }
 
@@ -923,7 +916,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
                   GestureDetector(
                     onTap: () {
                       Fx.tap();
-                      Navigator.of(context).pop();
+                      Navigator.of(context).maybePop();
                     },
                     child: Text(t.backHome, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white70)),
                   ),

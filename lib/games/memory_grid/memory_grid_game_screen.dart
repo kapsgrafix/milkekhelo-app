@@ -62,7 +62,6 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   int _hints = MgData.maxHints;
   bool _firstEasyRound = false;
   int _best = 0;
-  final _nudge = SaveProgressNudge();
 
   // Duel state.
   final List<int> _duelScores = [0, 0];
@@ -201,14 +200,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     _confettiKey.currentState?.fire();
     Fx.roundWin();
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
-    Future.delayed(const Duration(milliseconds: 1500), () async {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
-      // Save-progress nudge between rounds, once the streak is 3+ on Hard
-      // or 10+ on Easy (solo only).
-      if (_nudge.ready(progressed: _streak >= (widget.level == 'hard' ? 3 : 10))) {
-        await _nudge.show(context, background: MgData.screenBg);
-        if (!mounted) return;
-      }
       _soloNewRound();
     });
   }
@@ -375,7 +368,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     });
   }
 
-  void _quitToHome() => Navigator.of(context).pop();
+  /// Leave via the Save Progress gate (it may show the overlay first).
+  void _quitToHome() => Navigator.of(context).maybePop();
 
   void _openHow(MgText t) {
     showModalBottomSheet(
@@ -399,7 +393,11 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLang>(
+    return SaveProgressGate(
+      // Save Progress overlay on leaving (solo): streak 3+ on Hard, 10+ on Easy.
+      progressed: () => !_isDuel && _streak >= (widget.level == 'hard' ? 3 : 10),
+      background: MgData.screenBg,
+      child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = MgText(lang);
@@ -436,6 +434,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
           ),
         );
       },
+    ),
     );
   }
 

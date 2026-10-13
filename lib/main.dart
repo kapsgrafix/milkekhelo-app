@@ -15,6 +15,17 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  // Draw edge-to-edge: every screen paints its own colour (the bottom ad
+  // strip) behind the Android navigation bar, which stays transparent with
+  // no contrast scrim — so the system footer merges with the app instead of
+  // showing as a separate band.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    statusBarColor: Colors.transparent,
+  ));
   // Music / sound / vibration preferences must be known before anything
   // plays; audio itself preloads in the background.
   await FeedbackSettings.instance.load();

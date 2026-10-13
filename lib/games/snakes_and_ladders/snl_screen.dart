@@ -70,8 +70,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   /// Colour of the goti that just reached 100 (plays the win burst).
   String? _celebrate100;
 
-  /// Save-progress sign-in nudge: after a few turns (3 each), between turns. The match clock pauses while it's open.
-  final _nudge = SaveProgressNudge();
+  /// Turns played this match — the Save Progress overlay shows on leaving
+  /// once there have been 6 (3 each). The match clock pauses while it's open.
   int _turnsPlayed = 0;
   bool _paused = false;
 
@@ -269,21 +269,6 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _msgKind = _MsgKind.turn;
     });
     _turnsPlayed++;
-    _maybeNudge();
-  }
-
-  Future<void> _maybeNudge() async {
-    if (_gameOver || !_nudge.ready(progressed: _turnsPlayed >= 6)) return;
-    setState(() {
-      _busy = true; // no rolling while it's open
-      _paused = true;
-    });
-    await _nudge.show(context, background: SnlData.screenBg);
-    if (!mounted) return;
-    setState(() {
-      _paused = false;
-      _busy = false;
-    });
   }
 
   Future<void> _endGame({String? winner}) async {
@@ -314,7 +299,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     setState(() => _showEndScreen = true);
   }
 
-  void _exit() => Navigator.of(context).pop();
+  /// Leave via the Save Progress gate (it may show the overlay first).
+  void _exit() => Navigator.of(context).maybePop();
 
   void _openHow(SnlText t) => SnlScreen.showHowToPlay(context, t, timed: widget.timed);
 
@@ -332,7 +318,11 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLang>(
+    return SaveProgressGate(
+      progressed: () => _turnsPlayed >= 6,
+      background: SnlData.screenBg,
+      onShow: () => _paused = true,
+      child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {
         final t = SnlText(lang);
@@ -367,6 +357,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
           ),
         );
       },
+    ),
     );
   }
 

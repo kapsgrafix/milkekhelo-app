@@ -9,38 +9,28 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/social_login_button.dart';
 
-/// "Don't lose your game!" — the sign-in nudge shown over a game in
-/// progress (Figma "Save Progress Overlay - In Game", 401:675).
+/// "Don't lose your game!" — the sign-in nudge (Figma "Save Progress
+/// Overlay - In Game", 401:675).
 ///
 /// Only for games with real progress to save: Snakes & Ladders, Chess,
 /// Memory Grid (solo) and Blocks Jodo. Never for My First, Thank You or
 /// Who's That.
 ///
-/// It must never feel like a blocker, so it shows only when ALL of these
-/// are true:
-///   • the player has made real progress (each game decides — e.g. a few
-///     turns in SnL, a few moves in Chess, a streak in Memory Grid, a good
-///     score in Blocks Jodo),
-///   • it's a calm moment (between turns / rounds, nothing animating),
-///   • it hasn't been shown yet this app launch, and
-///   • it has been shown fewer than [maxShows] times ever.
-/// Tapping ✕, outside the card, or back closes it.
+/// WHEN: as the player tries to LEAVE a game (header back arrow, Android
+/// back, or a "Home" / exit button) after that game's progress threshold
+/// is met. Closing it (✕, tap outside, back) or tapping a sign-in button
+/// carries on with what they wanted — leaving the game.
+/// HOW OFTEN: the first [maxShows] times for a new player, then never.
 ///
-/// Usage, in a game's State:
-///   final _nudge = SaveProgressNudge();
-///   if (_nudge.ready(progressed: …)) {
-///     await _nudge.show(context, background: myScreenBg);
-///   }
+/// Usage: wrap the game screen in a [SaveProgressGate], and route every
+/// exit through `Navigator.maybePop(context)` so the gate can step in.
 class SaveProgressNudge {
-  SaveProgressNudge() {
-    _load();
-  }
+  SaveProgressNudge._();
 
-  static const int maxShows = 3;
-  static const String _countKey = 'save_progress_nudge_shown';
+  static const int maxShows = 10;
+  static const String _countKey = 'save_progress_overlay_count';
 
   static int? _shownCount; // null until loaded
-  static bool _shownThisLaunch = false;
 
   static Future<void> _load() async {
     if (_shownCount != null) return;
@@ -52,18 +42,17 @@ class SaveProgressNudge {
     }
   }
 
+  /// Warm up the stored count (called when a gated game opens).
+  static void preload() => _load();
+
   /// True when the overlay may be shown now.
-  bool ready({required bool progressed}) {
+  static bool ready({required bool progressed}) {
     final count = _shownCount;
-    return progressed &&
-        count != null &&
-        count < maxShows &&
-        !_shownThisLaunch;
+    return progressed && count != null && count < maxShows;
   }
 
-  /// Shows the overlay; completes when it's closed.
-  Future<void> show(BuildContext context, {required Color background}) async {
-    _shownThisLaunch = true;
+  /// Shows the overlay; completes when it's closed (however it's closed).
+  static Future<void> show(BuildContext context, {required Color background}) async {
     _shownCount = (_shownCount ?? 0) + 1;
     SharedPreferences.getInstance()
         .then((p) => p.setInt(_countKey, _shownCount!))
@@ -82,6 +71,66 @@ class SaveProgressNudge {
           child: ScaleTransition(scale: Tween(begin: 0.88, end: 1.0).animate(curved), child: child),
         );
       },
+    );
+  }
+}
+
+/// Wraps a game screen and catches every attempt to leave it (Android back
+/// and anything that calls `Navigator.maybePop`). If [progressed] says the
+/// threshold is met and the overlay still has shows left, the overlay
+/// appears first; once it's closed, the screen is left as intended.
+class SaveProgressGate extends StatefulWidget {
+  /// Has the player made enough progress for the nudge? Asked at exit time.
+  final bool Function() progressed;
+
+  /// The game's screen colour (the overlay card's fill).
+  final Color background;
+
+  /// Called just before the overlay appears (e.g. to pause a match clock).
+  final VoidCallback? onShow;
+
+  final Widget child;
+
+  const SaveProgressGate({
+    super.key,
+    required this.progressed,
+    required this.background,
+    required this.child,
+    this.onShow,
+  });
+
+  @override
+  State<SaveProgressGate> createState() => _SaveProgressGateState();
+}
+
+class _SaveProgressGateState extends State<SaveProgressGate> {
+  bool _leaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SaveProgressNudge.preload();
+  }
+
+  Future<void> _onExit() async {
+    if (_leaving) return;
+    _leaving = true;
+    final nav = Navigator.of(context);
+    if (SaveProgressNudge.ready(progressed: widget.progressed())) {
+      widget.onShow?.call();
+      await SaveProgressNudge.show(context, background: widget.background);
+    }
+    if (mounted) nav.pop(); // carry on leaving the game
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onExit();
+      },
+      child: widget.child,
     );
   }
 }
@@ -105,8 +154,8 @@ class SaveProgressOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     void close() => Navigator.of(context).pop();
     void signIn() {
-      showSignInComingSoon(context); // lands on the game's Scaffold
-      close();
+      showSignInComingSoon(context); // stays up as the game closes
+      close(); // …then the gate carries on leaving the game
     }
 
     return ValueListenableBuilder<AppLang>(
