@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/save_progress/save_progress_nudge.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -199,6 +200,18 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     _after(350, _deal);
   }
 
+  /// Save-progress sign-in nudge: when the tray is empty (a calm moment
+  /// between hands), once the score is 150+ and after a minute of play.
+  final _nudge = SaveProgressNudge();
+
+  Future<void> _dealAfterNudge() async {
+    if (!_gameOver && !_busy && _nudge.ready(progressed: _score >= 150)) {
+      await _nudge.show(context, background: BjData.screenBg);
+      if (!mounted || _gameOver) return;
+    }
+    _deal();
+  }
+
   void _deal() {
     setState(() => _tray = List<BjPiece?>.of(_dealer.deal(_board)));
     _refill.forward(from: 0);
@@ -322,7 +335,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     }
 
     if (_tray.every((p) => p == null)) {
-      _after(260, _deal);
+      _after(260, _dealAfterNudge);
     } else {
       _after(lines.isEmpty ? 250 : 600, _checkMoves);
     }

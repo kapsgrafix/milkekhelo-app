@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/save_progress/save_progress_nudge.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -69,6 +70,12 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   /// Colour of the goti that just reached 100 (plays the win burst).
   String? _celebrate100;
 
+  /// Save-progress sign-in nudge: after a few turns (3 each) and a minute
+  /// of play, between turns. The match clock pauses while it's open.
+  final _nudge = SaveProgressNudge();
+  int _turnsPlayed = 0;
+  bool _paused = false;
+
   late final AnimationController _blinkCtrl =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
   late final AnimationController _diceShakeCtrl =
@@ -117,6 +124,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _showEndScreen = false;
       _winner = null;
       _celebrate100 = null;
+      _turnsPlayed = 0;
+      _paused = false;
     });
     _runCountdown();
   }
@@ -142,7 +151,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   void _startMatchTimer() {
     _matchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
+      if (!mounted || _paused) return;
       setState(() => _timeLeft--);
       if (_timeLeft > 0 && _timeLeft <= 10) Fx.timerTick();
       if (_timeLeft <= 20 && !_blinkCtrl.isAnimating) {
@@ -259,6 +268,22 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _turn = _turn == 'yellow' ? 'red' : 'yellow';
       _busy = false;
       _msgKind = _MsgKind.turn;
+    });
+    _turnsPlayed++;
+    _maybeNudge();
+  }
+
+  Future<void> _maybeNudge() async {
+    if (_gameOver || !_nudge.ready(progressed: _turnsPlayed >= 6)) return;
+    setState(() {
+      _busy = true; // no rolling while it's open
+      _paused = true;
+    });
+    await _nudge.show(context, background: SnlData.screenBg);
+    if (!mounted) return;
+    setState(() {
+      _paused = false;
+      _busy = false;
     });
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/save_progress/save_progress_nudge.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -61,6 +62,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   int _hints = MgData.maxHints;
   bool _firstEasyRound = false;
   int _best = 0;
+  final _nudge = SaveProgressNudge();
 
   // Duel state.
   final List<int> _duelScores = [0, 0];
@@ -199,8 +201,14 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     _confettiKey.currentState?.fire();
     Fx.roundWin();
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 1500), () async {
       if (!mounted) return;
+      // Save-progress nudge between rounds, after a minute of play, once
+      // the streak is 3+ on Hard or 10+ on Easy (solo only).
+      if (_nudge.ready(progressed: _streak >= (widget.level == 'hard' ? 3 : 10))) {
+        await _nudge.show(context, background: MgData.screenBg);
+        if (!mounted) return;
+      }
       _soloNewRound();
     });
   }

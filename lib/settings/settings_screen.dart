@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/widgets/game_header.dart';
 import '../core/widgets/screen_bottom_bar.dart';
+import '../core/widgets/social_login_button.dart';
 import '../policy/policy_screen.dart';
 
 /// App settings — Figma "Settings" (MilkeKhelo-Design, node 398:624,
@@ -26,7 +27,7 @@ import '../policy/policy_screen.dart';
 /// Content padding: 24px sides, 20px top, 28px between sections.
 ///
 /// Google / Facebook sign-in is UI only for now — the buttons show a
-/// "coming soon" note until the login code is added.
+/// "coming soon" note ([showSignInComingSoon]) until the login code is added.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -90,9 +91,9 @@ class SettingsScreen extends StatelessWidget {
                                     fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMuted),
                               ),
                               const SizedBox(height: 10),
-                              _SocialLoginButton.google(label: t.google, onTap: () => _comingSoon(context, t)),
+                              SocialLoginButton.google(onTap: () => showSignInComingSoon(context)),
                               const SizedBox(height: 12),
-                              _SocialLoginButton.facebook(label: t.facebook, onTap: () => _comingSoon(context, t)),
+                              SocialLoginButton.facebook(onTap: () => showSignInComingSoon(context)),
                             ],
                           ),
                         ),
@@ -121,20 +122,6 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
-
-  void _comingSoon(BuildContext context, _SettingsText t) {
-    Fx.tap();
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text(t.comingSoon, style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600)),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xFF16234A),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: EdgeInsets.fromLTRB(24, 0, 24, 66 + MediaQuery.of(context).padding.bottom),
-      duration: const Duration(seconds: 2),
-    ));
-  }
 }
 
 // ───────────────────────────── Text ─────────────────────────────
@@ -155,9 +142,6 @@ class _SettingsText {
   String get accountHelper => hi
       ? 'साइन इन करें ताकि आपकी प्रगति सेव रहे और किसी भी डिवाइस पर खेल सकें'
       : 'Sign in to save your progress and play across devices';
-  String get google => hi ? 'Google से जारी रखें' : 'Continue with Google';
-  String get facebook => hi ? 'Facebook से जारी रखें' : 'Continue with Facebook';
-  String get comingSoon => hi ? 'साइन इन जल्द आ रहा है!' : 'Sign in is coming soon!';
   String get privacy => hi ? 'प्राइवेसी पॉलिसी' : 'Privacy Policy';
   String get version => hi ? 'संस्करण ${SettingsScreen.appVersion}' : 'Version ${SettingsScreen.appVersion}';
 }
@@ -314,100 +298,6 @@ class SettingsToggle extends StatelessWidget {
               boxShadow: on
                   ? const [BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1))]
                   : const [],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Figma Styleguide "Social Login Button": 48px tall, radius 16, 16px side
-/// padding, 20px logo, 10px gap, Bold 16 label. Brand colours are
-/// third-party guidelines, so they're hard-coded here.
-///   Google:   white fill, 4-colour G, text/on-light label.
-///   Facebook: #1877F2 fill, white f, white label.
-class _SocialLoginButton extends StatefulWidget {
-  final String label;
-  final String logo;
-  final Color fill;
-  final Color textColor;
-  final VoidCallback onTap;
-
-  const _SocialLoginButton._({
-    required this.label,
-    required this.logo,
-    required this.fill,
-    required this.textColor,
-    required this.onTap,
-  });
-
-  factory _SocialLoginButton.google({required String label, required VoidCallback onTap}) => _SocialLoginButton._(
-        label: label,
-        logo: 'assets/settings/google_logo.webp',
-        fill: Colors.white,
-        textColor: AppColors.textOnLight,
-        onTap: onTap,
-      );
-
-  factory _SocialLoginButton.facebook({required String label, required VoidCallback onTap}) => _SocialLoginButton._(
-        label: label,
-        logo: 'assets/settings/facebook_logo.webp',
-        fill: const Color(0xFF1877F2),
-        textColor: Colors.white,
-        onTap: onTap,
-      );
-
-  @override
-  State<_SocialLoginButton> createState() => _SocialLoginButtonState();
-}
-
-class _SocialLoginButtonState extends State<_SocialLoginButton> {
-  bool _down = false;
-
-  void _set(bool v) {
-    if (_down != v) setState(() => _down = v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: widget.label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _set(true),
-        onTapUp: (_) => _set(false),
-        onTapCancel: () => _set(false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _down ? 0.97 : 1,
-          duration: const Duration(milliseconds: 90),
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: widget.fill,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            foregroundDecoration: BoxDecoration(
-              color: _down ? const Color(0x1F000000) : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(widget.logo, width: 20, height: 20, filterQuality: FilterQuality.medium),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w700, color: widget.textColor),
-                  ),
-                ),
-              ],
             ),
           ),
         ),

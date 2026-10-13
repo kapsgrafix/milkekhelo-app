@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/save_progress/save_progress_nudge.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -83,6 +84,10 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   late final AnimationController _endCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
   final _confetti = GlobalKey<_ConfettiState>();
   final _rng = Random();
+
+  /// Save-progress sign-in nudge: once either player has made 4 moves and
+  /// after a minute of play, when the board is quiet and it's a human's turn.
+  final _nudge = SaveProgressNudge();
 
   @override
   void initState() {
@@ -178,7 +183,19 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _bannerFlip = _twoPlayer && !_game.whiteToMove;
       _bannerCtrl.forward(from: 0);
     }
-    if (widget.vsBot && !_game.whiteToMove) _botTurn();
+    if (widget.vsBot && !_game.whiteToMove) {
+      _botTurn();
+      return;
+    }
+    _maybeNudge(gen);
+  }
+
+  Future<void> _maybeNudge(int gen) async {
+    if (!_nudge.ready(progressed: _game.moves.length >= 7)) return;
+    await Future.delayed(const Duration(milliseconds: 450)); // let the move settle
+    if (!mounted || gen != _generation || _game.over || _busy) return;
+    if (!_nudge.ready(progressed: true)) return;
+    await _nudge.show(context, background: _bg);
   }
 
   void _burst(ChessMove m) {
