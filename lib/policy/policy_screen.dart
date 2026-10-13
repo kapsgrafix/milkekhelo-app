@@ -24,11 +24,11 @@ class PolicyScreen extends StatelessWidget {
       builder: (context, lang, _) {
         final isHi = lang == AppLang.hi;
         return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: const SystemUiOverlayStyle(
+          value: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: AppColors.surfaceOnScreen,
+            systemNavigationBarColor: AppColors.adStripOn(AppColors.screenBackground),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(

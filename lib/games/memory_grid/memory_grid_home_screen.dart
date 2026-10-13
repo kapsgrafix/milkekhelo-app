@@ -42,7 +42,7 @@ class MemoryGridHomeScreen extends StatelessWidget {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, MgData.screenBg),
+            systemNavigationBarColor: AppColors.adStripOn(MgData.screenBg),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(

@@ -25,6 +25,18 @@ class AppColors {
   /// Android system navigation bar so it blends with the home bottom bar.
   static const Color surfaceOnScreen = Color(0xFF313A58);
 
+  /// Bottom ad strip (holds the 320×50 banner ad). A few shades DARKER than
+  /// the page: 43% black over the screen colour — Figma Settings uses
+  /// #010821 over the home navy #000E3A, which is exactly this.
+  static const Color adStripShade = Color(0x6E000000);
+
+  /// The ad strip's solid colour over a given page background — also used
+  /// for the Android navigation bar so it continues the strip seamlessly.
+  static Color adStripOn(Color background) => Color.alphaBlend(adStripShade, background);
+
+  /// Ad strip on the home / settings navy (Figma Settings bottom bar).
+  static const Color adStripHome = Color(0xFF010821);
+
   /// Per-game screen backgrounds (Figma background/screen-*).
   static const Color screenPurple = Color(0xFF1B0F3D); // First
   static const Color screenCoral = Color(0xFF3D1C0F); // Thank You

@@ -64,7 +64,7 @@ class WtScaffold extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: bottomBar ? Color.alphaBlend(AppColors.surface, WtColors.screenBg) : WtColors.footSheet,
+        systemNavigationBarColor: bottomBar ? AppColors.adStripOn(WtColors.screenBg) : WtColors.footSheet,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(

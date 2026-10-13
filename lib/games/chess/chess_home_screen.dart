@@ -35,7 +35,7 @@ class ChessHomeScreen extends StatelessWidget {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, screenBg),
+            systemNavigationBarColor: AppColors.adStripOn(screenBg),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(

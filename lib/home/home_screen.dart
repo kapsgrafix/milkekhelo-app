@@ -19,15 +19,16 @@ import '../games/memory_grid/memory_grid_home_screen.dart';
 import '../games/snakes_and_ladders/snl_home_screen.dart';
 import '../games/thank_you/thank_you_screen.dart';
 import '../games/whos_that/whos_that_screen.dart';
-import 'settings_sheet.dart';
+import '../core/widgets/screen_bottom_bar.dart';
+import '../settings/settings_screen.dart';
 
 /// The launcher / home screen — Figma "Home - L0 Final - Phase 3"
 /// (MilkeKhelo-Design, node 348:2469, 360×720).
 ///
 /// Figma layout (y from frame top). Kapil's tweaks on top of the frame:
 /// 16px side margins, Party Games cards fill the row (10px gaps, square),
-/// no bottom bar.
-///   0    Header (Type=Logo): menu · centred 136px wordmark · language   56
+/// and the 50px ad strip at the bottom (#010821, same as Settings).
+///   0    Header (Type=Logo): settings gear · centred 136px wordmark · language   56
 ///   68   Featured banner 320×264, radius 24: block-art background,
 ///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
 ///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
@@ -53,7 +54,7 @@ class HomeScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: _homeBgEdge,
+        systemNavigationBarColor: AppColors.adStripHome,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
@@ -77,6 +78,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const SafeArea(bottom: false, child: _HomeHeader()),
                   Expanded(child: _HomeBody(isHi: isHi)),
+                  const ScreenBottomBar(color: AppColors.adStripHome),
                 ],
               );
             },
@@ -257,8 +259,8 @@ class _FeaturedBanner extends StatelessWidget {
 
 // ──────────────────────────── Header ────────────────────────────
 
-/// Figma "Header / Type=Logo": 12px padding, 72px left slot with the menu
-/// button, the 136×18.9 wordmark centred, 72px language toggle on the right.
+/// Figma "Header / Type=Logo": 12px padding, 72px left slot with the
+/// settings button, the 136×18.9 wordmark centred, 72px language toggle on the right.
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
 
@@ -272,7 +274,7 @@ class _HomeHeader extends StatelessWidget {
             width: 72,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _MenuButton(onTap: () => showSettingsSheet(context)),
+              child: _SettingsButton(onTap: () => _push(context, const SettingsScreen())),
             ),
           ),
           Expanded(
@@ -297,31 +299,60 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-/// Figma "Icon/Menu": the shared 32×32 header button with a 16px
-/// three-bar hamburger glyph in text/primary.
-class _MenuButton extends StatelessWidget {
+/// Figma "Icon/Settings": the shared 32×32 header button with a 16px
+/// filled gear (8 teeth, centre hole) in text/primary.
+class _SettingsButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _MenuButton({required this.onTap});
+  const _SettingsButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    Widget bar() => Container(
-          width: 16,
-          height: 3,
-          decoration: BoxDecoration(
-            color: AppColors.textPrimary,
-            borderRadius: BorderRadius.circular(1.5),
-          ),
-        );
     return HeaderIconButton(
-      semanticLabel: 'Menu',
+      semanticLabel: 'Settings',
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [bar(), const SizedBox(height: 3), bar(), const SizedBox(height: 3), bar()],
-      ),
+      child: const SizedBox(width: 16, height: 16, child: CustomPaint(painter: GearPainter(AppColors.textPrimary))),
     );
   }
+}
+
+/// 16×16 filled gear silhouette: 8 rounded-off teeth around a ring with a
+/// centre hole (even-odd fill), matching the Styleguide "Name=Settings" icon.
+class GearPainter extends CustomPainter {
+  final Color color;
+  const GearPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide / 16;
+    final c = Offset(size.width / 2, size.height / 2);
+    const teeth = 8;
+    const outerR = 7.6, bodyR = 5.9, holeR = 2.3;
+    const toothHalf = 0.30; // fraction of a tooth period covered by the tooth top
+    final step = 2 * pi / teeth;
+    Offset at(double r, double a) => c + Offset(cos(a), sin(a)) * r * s;
+    final outer = Rect.fromCircle(center: c, radius: outerR * s);
+    final body = Rect.fromCircle(center: c, radius: bodyR * s);
+    final path = Path();
+    for (var i = 0; i < teeth; i++) {
+      final mid = i * step - pi / 2;
+      final topA = mid - step * toothHalf / 2;
+      final topB = mid + step * toothHalf / 2;
+      final baseA = mid - step * 0.26;
+      final baseB = mid + step * 0.26;
+      if (i == 0) path.moveTo(at(bodyR, baseA).dx, at(bodyR, baseA).dy);
+      path.lineTo(at(outerR, topA).dx, at(outerR, topA).dy);
+      path.arcTo(outer, topA, topB - topA, false); // tooth top
+      path.lineTo(at(bodyR, baseB).dx, at(bodyR, baseB).dy);
+      path.arcTo(body, baseB, step * 0.48, false); // valley to the next tooth
+    }
+    path.close();
+    path.addOval(Rect.fromCircle(center: c, radius: holeR * s));
+    path.fillType = PathFillType.evenOdd;
+    canvas.drawPath(path, Paint()..color = color..isAntiAlias = true);
+  }
+
+  @override
+  bool shouldRepaint(GearPainter old) => old.color != color;
 }
 
 

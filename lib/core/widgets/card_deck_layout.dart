@@ -76,7 +76,7 @@ class CardDeckLayout extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color.alphaBlend(AppColors.surface, background),
+        systemNavigationBarColor: AppColors.adStripOn(background),
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(

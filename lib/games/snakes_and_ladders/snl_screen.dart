@@ -317,7 +317,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, SnlData.screenBg),
+            systemNavigationBarColor: AppColors.adStripOn(SnlData.screenBg),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(

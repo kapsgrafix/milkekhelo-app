@@ -542,7 +542,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, BjData.screenBg),
+            systemNavigationBarColor: AppColors.adStripOn(BjData.screenBg),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(

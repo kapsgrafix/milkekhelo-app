@@ -12,7 +12,7 @@ import 'language_toggle.dart';
 ///
 /// The Sound button (shown when [soundToggle] is true — every game screen)
 /// switches music, sound effects and vibration off together, or back on.
-/// It shares state with the Menu sheet's three toggles.
+/// It shares state with the Settings screen's three toggles.
 ///
 /// This is the ONLY place the header chrome is defined.
 class GameHeader extends StatelessWidget {

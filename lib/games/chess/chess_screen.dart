@@ -299,7 +299,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Color.alphaBlend(AppColors.surface, _bg),
+            systemNavigationBarColor: AppColors.adStripOn(_bg),
             systemNavigationBarIconBrightness: Brightness.light,
           ),
           child: Scaffold(
