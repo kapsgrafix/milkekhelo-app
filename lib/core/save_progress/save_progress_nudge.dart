@@ -21,31 +21,26 @@ import '../widgets/social_login_button.dart';
 ///   • the player has made real progress (each game decides — e.g. a few
 ///     turns in SnL, a few moves in Chess, a streak in Memory Grid, a good
 ///     score in Blocks Jodo),
-///   • they've been playing this game for at least [minPlay],
 ///   • it's a calm moment (between turns / rounds, nothing animating),
 ///   • it hasn't been shown yet this app launch, and
 ///   • it has been shown fewer than [maxShows] times ever.
 /// Tapping ✕, outside the card, or back closes it.
 ///
 /// Usage, in a game's State:
-///   final _nudge = SaveProgressNudge();            // starts the play clock
+///   final _nudge = SaveProgressNudge();
 ///   if (_nudge.ready(progressed: …)) {
 ///     await _nudge.show(context, background: myScreenBg);
 ///   }
 class SaveProgressNudge {
   SaveProgressNudge() {
-    _clock.start();
     _load();
   }
 
   static const int maxShows = 3;
-  static const Duration minPlay = Duration(minutes: 1);
   static const String _countKey = 'save_progress_nudge_shown';
 
   static int? _shownCount; // null until loaded
   static bool _shownThisLaunch = false;
-
-  final Stopwatch _clock = Stopwatch();
 
   static Future<void> _load() async {
     if (_shownCount != null) return;
@@ -63,8 +58,7 @@ class SaveProgressNudge {
     return progressed &&
         count != null &&
         count < maxShows &&
-        !_shownThisLaunch &&
-        _clock.elapsed >= minPlay;
+        !_shownThisLaunch;
   }
 
   /// Shows the overlay; completes when it's closed.

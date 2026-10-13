@@ -203,8 +203,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
     Future.delayed(const Duration(milliseconds: 1500), () async {
       if (!mounted) return;
-      // Save-progress nudge between rounds, after a minute of play, once
-      // the streak is 3+ on Hard or 10+ on Easy (solo only).
+      // Save-progress nudge between rounds, once the streak is 3+ on Hard
+      // or 10+ on Easy (solo only).
       if (_nudge.ready(progressed: _streak >= (widget.level == 'hard' ? 3 : 10))) {
         await _nudge.show(context, background: MgData.screenBg);
         if (!mounted) return;

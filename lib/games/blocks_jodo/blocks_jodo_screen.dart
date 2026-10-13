@@ -201,7 +201,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   }
 
   /// Save-progress sign-in nudge: when the tray is empty (a calm moment
-  /// between hands), once the score is 150+ and after a minute of play.
+  /// between hands), once the score is 150+.
   final _nudge = SaveProgressNudge();
 
   Future<void> _dealAfterNudge() async {

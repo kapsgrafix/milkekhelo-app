@@ -85,8 +85,8 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   final _confetti = GlobalKey<_ConfettiState>();
   final _rng = Random();
 
-  /// Save-progress sign-in nudge: once either player has made 4 moves and
-  /// after a minute of play, when the board is quiet and it's a human's turn.
+  /// Save-progress sign-in nudge: once either player has made 4 moves,
+  /// when the board is quiet and it's a human's turn.
   final _nudge = SaveProgressNudge();
 
   @override

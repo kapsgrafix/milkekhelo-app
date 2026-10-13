@@ -70,8 +70,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   /// Colour of the goti that just reached 100 (plays the win burst).
   String? _celebrate100;
 
-  /// Save-progress sign-in nudge: after a few turns (3 each) and a minute
-  /// of play, between turns. The match clock pauses while it's open.
+  /// Save-progress sign-in nudge: after a few turns (3 each), between turns. The match clock pauses while it's open.
   final _nudge = SaveProgressNudge();
   int _turnsPlayed = 0;
   bool _paused = false;
