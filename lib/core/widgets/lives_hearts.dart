@@ -90,16 +90,16 @@ class _LivesHeartsState extends State<LivesHearts> with SingleTickerProviderStat
   }
 }
 
-/// A rounded heart: pink→red gradient face, 3px dark-red ledge underneath
+/// A rounded heart: bright red → deep red face, 3px dark-red ledge underneath
 /// (the same chunky "ledge" as the app's cards), and a soft white glint.
 /// Empty: background/surface fill with a border/default outline.
 class _HeartPainter extends CustomPainter {
   final bool full;
   const _HeartPainter({required this.full});
 
-  static const _top = Color(0xFFFF8FA8);
-  static const _bottom = Color(0xFFE0244A);
-  static const _ledge = Color(0xFF7A1030);
+  static const _top = Color(0xFFFF5A52);
+  static const _bottom = Color(0xFFD9141E);
+  static const _ledge = Color(0xFF6E0A0F);
 
   static Path _shape(double w, double h) {
     // Heart in a w × h box: two round lobes meeting in a soft point.

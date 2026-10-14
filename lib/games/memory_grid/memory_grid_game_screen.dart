@@ -204,7 +204,16 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
-      _soloNewRound();
+      // Turn the whole grid face down first, then flip up the new pattern.
+      setState(() {
+        _found.clear();
+        _hintRevealed.clear();
+        _wrongIndex = null;
+      });
+      Future.delayed(const Duration(milliseconds: _FlipTile.flipMs + 250), () {
+        if (!mounted) return;
+        _soloNewRound();
+      });
     });
   }
 

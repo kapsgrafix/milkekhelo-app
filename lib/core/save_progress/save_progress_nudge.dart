@@ -18,8 +18,9 @@ import '../widgets/social_login_button.dart';
 ///
 /// WHEN: as the player tries to LEAVE a game (header back arrow, Android
 /// back, or a "Home" / exit button) after that game's progress threshold
-/// is met. Closing it (✕, tap outside, back) or tapping a sign-in button
-/// carries on with what they wanted — leaving the game.
+/// is met — never from the result screen. "Exit the game" leaves; ✕, tap
+/// outside or back closes it and the player stays in the game. Google /
+/// Facebook (side by side) show "coming soon" and keep them in the game.
 /// HOW OFTEN: the first [maxShows] times for a new player, then never.
 ///
 /// Usage: wrap the game screen in a [SaveProgressGate], and route every
@@ -51,13 +52,14 @@ class SaveProgressNudge {
     return progressed && count != null && count < maxShows;
   }
 
-  /// Shows the overlay; completes when it's closed (however it's closed).
-  static Future<void> show(BuildContext context, {required Color background}) async {
+  /// Shows the overlay. Completes with true if the player chose "Exit the
+  /// game", false if they closed it (✕, tap outside, back) to keep playing.
+  static Future<bool> show(BuildContext context, {required Color background}) async {
     _shownCount = (_shownCount ?? 0) + 1;
     SharedPreferences.getInstance()
         .then((p) => p.setInt(_countKey, _shownCount!))
         .catchError((_) => false);
-    await showGeneralDialog<void>(
+    final exit = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close',
@@ -72,13 +74,15 @@ class SaveProgressNudge {
         );
       },
     );
+    return exit == true;
   }
 }
 
 /// Wraps a game screen and catches every attempt to leave it (Android back
 /// and anything that calls `Navigator.maybePop`). If [progressed] says the
 /// threshold is met and the overlay still has shows left, the overlay
-/// appears first; once it's closed, the screen is left as intended.
+/// appears first: "Exit the game" leaves; ✕ (or tap outside / back) closes
+/// it and the player stays in the game.
 class SaveProgressGate extends StatefulWidget {
   /// Has the player made enough progress for the nudge? Asked at exit time.
   final bool Function() progressed;
@@ -89,6 +93,9 @@ class SaveProgressGate extends StatefulWidget {
   /// Called just before the overlay appears (e.g. to pause a match clock).
   final VoidCallback? onShow;
 
+  /// Called when the player closes the overlay and stays in the game.
+  final VoidCallback? onResume;
+
   final Widget child;
 
   const SaveProgressGate({
@@ -97,6 +104,7 @@ class SaveProgressGate extends StatefulWidget {
     required this.background,
     required this.child,
     this.onShow,
+    this.onResume,
   });
 
   @override
@@ -105,6 +113,10 @@ class SaveProgressGate extends StatefulWidget {
 
 class _SaveProgressGateState extends State<SaveProgressGate> {
   bool _leaving = false;
+
+  /// The player already closed it once in this game: the next exit attempt
+  /// just leaves (no asking twice).
+  bool _dismissedHere = false;
 
   @override
   void initState() {
@@ -116,11 +128,18 @@ class _SaveProgressGateState extends State<SaveProgressGate> {
     if (_leaving) return;
     _leaving = true;
     final nav = Navigator.of(context);
-    if (SaveProgressNudge.ready(progressed: widget.progressed())) {
+    if (!_dismissedHere && SaveProgressNudge.ready(progressed: widget.progressed())) {
       widget.onShow?.call();
-      await SaveProgressNudge.show(context, background: widget.background);
+      final exit = await SaveProgressNudge.show(context, background: widget.background);
+      if (!exit) {
+        // ✕ / tap outside / back: stay in the game.
+        _leaving = false;
+        _dismissedHere = true;
+        if (mounted) widget.onResume?.call();
+        return;
+      }
     }
-    if (mounted) nav.pop(); // carry on leaving the game
+    if (mounted) nav.pop(); // "Exit the game" (or no overlay): leave
   }
 
   @override
@@ -152,10 +171,11 @@ class SaveProgressOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void close() => Navigator.of(context).pop();
+    void close() => Navigator.of(context).pop(false); // stay in the game
+    void exitGame() => Navigator.of(context).pop(true); // carry on leaving
     void signIn() {
-      showSignInComingSoon(context); // stays up as the game closes
-      close(); // …then the gate carries on leaving the game
+      showSignInComingSoon(context);
+      close(); // stay in the game for now (sign-in isn't wired up yet)
     }
 
     return ValueListenableBuilder<AppLang>(
@@ -202,10 +222,36 @@ class SaveProgressOverlay extends StatelessWidget {
                                 fontSize: 14, fontWeight: FontWeight.w500, height: 1.4, color: AppColors.textMuted),
                           ),
                           const SizedBox(height: 16),
-                          SocialLoginButton.google(onTap: signIn),
-                          const SizedBox(height: 10),
-                          SocialLoginButton.facebook(onTap: signIn),
-                          const SizedBox(height: 16),
+                          // Google and Facebook side by side.
+                          Row(
+                            children: [
+                              Expanded(child: SocialLoginButton.google(onTap: signIn, compact: true)),
+                              const SizedBox(width: 10),
+                              Expanded(child: SocialLoginButton.facebook(onTap: signIn, compact: true)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            button: true,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                Fx.tap();
+                                exitGame();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // touch target
+                                child: Text(
+                                  hi ? 'गेम से बाहर निकलें' : 'Exit the game',
+                                  style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600).copyWith(
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
                           Text(
                             hi ? 'हम आपसे पूछे बिना कभी कुछ पोस्ट नहीं करेंगे।' : "We'll never post anything without asking.",
                             textAlign: TextAlign.center,

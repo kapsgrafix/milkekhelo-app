@@ -323,6 +323,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       progressed: () => !_gameOver && _turnsPlayed >= 6,
       background: SnlData.screenBg,
       onShow: () => _paused = true,
+      onResume: () => _paused = false,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
       builder: (context, lang, _) {

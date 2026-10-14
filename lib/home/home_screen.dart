@@ -139,7 +139,9 @@ class _HomeBody extends StatelessWidget {
 
     return SingleChildScrollView(
       physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 32 - _GameModuleCard.ledge + MediaQuery.paddingOf(context).bottom),
+      // Scrolls only when the content is taller than the screen. The ad
+      // strip below already clears the nav bar, so no inset padding here.
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

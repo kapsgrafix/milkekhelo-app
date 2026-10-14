@@ -29,18 +29,19 @@ class SocialLoginButton extends StatefulWidget {
     required this.onTap,
   });
 
-  factory SocialLoginButton.google({required VoidCallback onTap}) => SocialLoginButton._(
-        labelEn: 'Continue with Google',
-        labelHi: 'Google से जारी रखें',
+  /// [compact]: just the brand name ("Google"), for two buttons side by side.
+  factory SocialLoginButton.google({required VoidCallback onTap, bool compact = false}) => SocialLoginButton._(
+        labelEn: compact ? 'Google' : 'Continue with Google',
+        labelHi: compact ? 'Google' : 'Google से जारी रखें',
         logo: 'assets/settings/google_logo.webp',
         fill: Colors.white,
         textColor: AppColors.textOnLight,
         onTap: onTap,
       );
 
-  factory SocialLoginButton.facebook({required VoidCallback onTap}) => SocialLoginButton._(
-        labelEn: 'Continue with Facebook',
-        labelHi: 'Facebook से जारी रखें',
+  factory SocialLoginButton.facebook({required VoidCallback onTap, bool compact = false}) => SocialLoginButton._(
+        labelEn: compact ? 'Facebook' : 'Continue with Facebook',
+        labelHi: compact ? 'Facebook' : 'Facebook से जारी रखें',
         logo: 'assets/settings/facebook_logo.webp',
         fill: const Color(0xFF1877F2),
         textColor: Colors.white,

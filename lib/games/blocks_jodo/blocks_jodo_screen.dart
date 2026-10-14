@@ -114,6 +114,11 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
 
   @override
   void dispose() {
+    // Leaving mid-game: the game itself isn't saved, but a new high score is.
+    if (_score > _best) {
+      _best = _score;
+      _saveBest();
+    }
     for (final t in _timers) {
       t.cancel();
     }
