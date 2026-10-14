@@ -13,6 +13,7 @@ import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
+import '../../core/widgets/lives_hearts.dart';
 import '../../core/widgets/game_header.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'bj_data.dart';
@@ -92,8 +93,6 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       AnimationController(vsync: this, duration: const Duration(milliseconds: 240));
   late final AnimationController _refill =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
-  late final AnimationController _heart =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
 
   // Geometry, refreshed every layout.
   double _cell = 39.5;
@@ -122,7 +121,6 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     _lift.dispose();
     _ret.dispose();
     _refill.dispose();
-    _heart.dispose();
     _frame.dispose();
     super.dispose();
   }
@@ -221,7 +219,6 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     setState(() {});
     _after(300, () {
       Fx.noMoves();
-      _heart.forward(from: 0);
       setState(() {
         _lives = _lives > 0 ? _lives - 1 : 0;
         _showBanner(BjText(AppLanguage.instance.value).noSpace, edge: const Color(0xFF8A1030));
@@ -338,19 +335,8 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       final delay = (c - origin).distance / pitch * 0.028;
       final color = tint ?? e.value;
       _scene.bursts.add(BjBurst(e.key, color, t + delay));
-      for (var k = 0; k < 3; k++) {
-        final a = _rng.nextDouble() * pi * 2;
-        final v = 90 + _rng.nextDouble() * 220;
-        _scene.particles.add(BjParticle(
-          c,
-          Offset(cos(a) * v, sin(a) * v - 160),
-          k == 0 ? Colors.white : color,
-          t + delay + 0.12,
-          0.55 + _rng.nextDouble() * 0.35,
-          4 + _rng.nextDouble() * 6,
-          (_rng.nextDouble() - 0.5) * 16,
-        ));
-      }
+      // No flying sparks on each clear (too distracting) — the cell burst
+      // and the line beam are enough.
     }
     final beam = tint ?? Colors.white;
     for (final r in lines.rows) {
@@ -535,8 +521,9 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   @override
   Widget build(BuildContext context) {
     return SaveProgressGate(
-      // Save Progress overlay on leaving, once the score is 150+.
-      progressed: () => _score >= 150,
+      // Save Progress overlay on leaving a game in progress (not on the
+      // result screen), once the score is 150+.
+      progressed: () => !_gameOver && !_showGameOver && _score >= 150,
       background: BjData.screenBg,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
@@ -583,50 +570,29 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     );
   }
 
-  // Figma Score Section: two boxes — Score (number) and Lives (heart + n).
+  // Score Section: Best Score | Score, with the lives as hearts underneath
+  // (same layout as Memory Grid). Best shows the live best while you beat it.
   Widget _buildScoreSection(BjText t) {
     final number = AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800, height: 17 / 15);
+    Widget counter(int value) => TweenAnimationBuilder<double>(
+          tween: Tween(end: value.toDouble()),
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOut,
+          builder: (context, v, _) => Text('${v.round()}', style: number),
+        );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
         children: [
-          Expanded(
-            child: _statBox(
-              value: TweenAnimationBuilder<double>(
-                tween: Tween(end: _score.toDouble()),
-                duration: const Duration(milliseconds: 450),
-                curve: Curves.easeOut,
-                builder: (context, v, _) => Text('${v.round()}', style: number),
-              ),
-              label: t.score,
-            ),
+          Row(
+            children: [
+              Expanded(child: _statBox(value: counter(max(_best, _score)), label: t.bestScore)),
+              const SizedBox(width: 12),
+              Expanded(child: _statBox(value: counter(_score), label: t.score)),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _statBox(
-              value: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedBuilder(
-                    animation: _heart,
-                    builder: (context, child) {
-                      final v = _heart.value;
-                      final bump = v == 0 ? 1.0 : 1 + 0.6 * sin(pi * v) * (1 - v * 0.5);
-                      final color = Color.lerp(Colors.white, const Color(0xFFFF4D6D), sin(pi * v))!;
-                      return Transform.scale(scale: bump, child: Icon(Icons.favorite_rounded, size: 14, color: color));
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
-                    child: Text('$_lives', key: ValueKey(_lives), style: number),
-                  ),
-                ],
-              ),
-              label: t.lives,
-            ),
-          ),
+          const SizedBox(height: 12),
+          LivesHearts(lives: _lives, max: BjData.maxLives),
         ],
       ),
     );
@@ -666,12 +632,14 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
         // above and below. On short screens the whole group scales down.
         const gap = 24.0; // board → tray
         const margin = 16.0; // minimum space above and below the group
-        // trayHeight = 5 × 20k + 4 + 24, with k = boardSize / 340.
-        final byHeight = (c.maxHeight - 2 * margin - gap - 28) / (1 + 100 / 340);
-        final boardSize = min(min(340.0, c.maxWidth - 20), byHeight).clamp(200.0, 340.0).toDouble();
+        // trayHeight = 5 × 20k + 4 + 24, with k = boardSize / 300 (tray
+        // pieces keep their size on a 360 phone).
+        final byHeight = (c.maxHeight - 2 * margin - gap - 28) / (1 + 100 / 300);
+        // A little smaller than before: 300 on a 360 phone (was 340).
+        final boardSize = min(min(300.0, c.maxWidth - 60), byHeight).clamp(200.0, 300.0).toDouble();
         final inner = boardSize - 10; // 2px border + 3px padding each side
         _cell = (inner - BjBoardPainter.gap * (BjData.size - 1)) / BjData.size;
-        final k = boardSize / 340;
+        final k = boardSize / 300;
         _trayCell = 20 * k;
         _trayGap = 1;
         final trayHeight = 5 * _trayCell + 4 * _trayGap + 24;

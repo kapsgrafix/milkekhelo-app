@@ -43,6 +43,7 @@ class MgText {
   String get memorizeIn => _hi ? 'याद करो' : 'Memorize in';
   String get hint => _hi ? 'हिंट' : 'Hint';
   String get streak => _hi ? 'स्ट्रीक' : 'Streak';
+  String get bestStreakLabel => _hi ? 'बेस्ट स्ट्रीक' : 'Best Streak';
   String get lives => _hi ? 'जानें' : 'Lives';
 
   String mode(String level) {

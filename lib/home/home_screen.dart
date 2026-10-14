@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/feedback/fx.dart';
 import '../core/localization/app_language.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
@@ -206,7 +207,18 @@ class _FeaturedBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    // The whole banner opens Block Jodo, not just the Play Now button.
+    void open() => _push(context, const BlocksJodoScreen());
+    return Semantics(
+      button: true,
+      label: isHi ? 'ब्लॉक जोड़ो खेलें' : 'Play Block Jodo',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          Fx.tap();
+          open();
+        },
+        child: ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: SizedBox(
         height: height,
@@ -246,11 +258,13 @@ class _FeaturedBanner extends StatelessWidget {
                 child: ChunkyButton(
                   label: isHi ? 'अभी खेलें' : 'Play Now',
                   width: 240,
-                  onTap: () => _push(context, const BlocksJodoScreen()),
+                  onTap: open,
                 ),
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

@@ -12,6 +12,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
+import '../../core/widgets/lives_hearts.dart';
 import '../../core/widgets/player_score_chip.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'memory_grid_home_screen.dart' show MgHowToPlaySheet;
@@ -159,7 +160,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     final baseMs = MgData.revealMs[widget.level]!;
     final revealMs = _firstEasyRound ? baseMs * 2 : baseMs;
     _firstEasyRound = false;
-    Future.delayed(Duration(milliseconds: revealMs), () {
+    // + the flip-in time, so the pattern is fully visible for revealMs.
+    Future.delayed(Duration(milliseconds: revealMs + _FlipTile.flipMs), () {
       if (!mounted) return;
       setState(() {
         _phase = _Phase.play;
@@ -197,7 +199,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       setState(() => _best = _streak);
       _saveBest(_streak);
     }
-    _confettiKey.currentState?.fire();
+    // No confetti between rounds (too distracting) — just the sound + praise.
     Fx.roundWin();
     _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -261,7 +263,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       _activePlayer = -1;
       _statusKind = _StatusKind.memorise;
     });
-    Future.delayed(Duration(milliseconds: MgData.duelShowMs), () {
+    Future.delayed(Duration(milliseconds: MgData.duelShowMs + _FlipTile.flipMs), () {
       if (!mounted) return;
       setState(() {
         _phase = _Phase.play;
@@ -394,8 +396,10 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   @override
   Widget build(BuildContext context) {
     return SaveProgressGate(
-      // Save Progress overlay on leaving (solo): streak 3+ on Hard, 10+ on Easy.
-      progressed: () => !_isDuel && _streak >= (widget.level == 'hard' ? 3 : 10),
+      // Save Progress overlay on leaving a game in progress (solo, not on the
+      // result screen): streak 3+ on Hard, 10+ on Easy.
+      progressed: () =>
+          !_isDuel && _phase != _Phase.over && !_showGameOver && _streak >= (widget.level == 'hard' ? 3 : 10),
       background: MgData.screenBg,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
@@ -469,25 +473,20 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         ),
       );
     }
+    // Solo: Best Streak | Streak, with the lives as hearts underneath.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
         children: [
-          Expanded(child: _statBox(value: Text('$_streak', style: _statNumber), label: t.streak)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _statBox(
-              value: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.favorite_rounded, size: 14, color: Colors.white),
-                  const SizedBox(width: 6),
-                  Text('$_lives', style: _statNumber),
-                ],
-              ),
-              label: t.lives,
-            ),
+          Row(
+            children: [
+              Expanded(child: _statBox(value: Text('${max(_best, _streak)}', style: _statNumber), label: t.bestStreakLabel)),
+              const SizedBox(width: 12),
+              Expanded(child: _statBox(value: Text('$_streak', style: _statNumber), label: t.streak)),
+            ],
           ),
+          const SizedBox(height: 12),
+          LivesHearts(lives: _lives, max: MgData.maxLives),
         ],
       ),
     );
@@ -546,7 +545,8 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       builder: (context, c) {
         // Status (16 × 1.25) + 12 + hint pill (36) + bottom breathing room.
         const below = 20.0 + 12 + 36 + 20;
-        final gridSide = (c.maxWidth - 20).clamp(160.0, (c.maxHeight - below - 36).clamp(160.0, 2000.0)).toDouble();
+        // A little smaller than full width: 296 on a 360 phone (was 340).
+        final gridSide = (c.maxWidth - 64).clamp(160.0, (c.maxHeight - below - 36).clamp(160.0, 2000.0)).toDouble();
         const gap = 8.0;
         final tile = (gridSide - gap * (_gridSize - 1)) / _gridSize;
         return Column(
@@ -592,20 +592,20 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   }
 
   /// Figma tile: radius 12. Empty = slot-empty (35% black); lit / found =
-  /// module/green; wrong tap = module/coral. Found tiles show their order
-  /// (stat/number, text/on-light), scaled to the tile size.
+  /// purple; wrong tap = module/coral. Found tiles show their order
+  /// (stat/number, text/on-light), scaled to the tile size. Tiles turn face
+  /// up / face down with a card flip ([_FlipTile]).
   Widget _buildTile(int i, double size) {
     final isFound = _found.contains(i);
     final isWrong = _wrongIndex == i;
     final isHint = _hintRevealed.contains(i) && !isFound;
     final isLit = _phase == _Phase.showing && _target.contains(i);
 
-    Color color = MgData.tileEmpty;
+    Color front = MgData.tileLit;
     Widget? label;
     if (isWrong) {
-      color = MgData.tileWrong;
+      front = MgData.tileWrong;
     } else if (isFound) {
-      color = MgData.tileLit;
       label = FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
@@ -613,20 +613,19 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
           style: AppFonts.baloo(fontSize: 32 * size / 108, fontWeight: FontWeight.w800, height: 1.05, color: MgData.tileNumber),
         ),
       );
-    } else if (isLit) {
-      color = MgData.tileLit;
     } else if (isHint) {
-      color = MgData.tileLit.withAlpha(150);
+      front = MgData.tileLit.withAlpha(150);
     }
 
     final locked = _phase != _Phase.play;
     return GestureDetector(
       onTap: locked ? null : () => _isDuel ? _duelTap(i) : _soloTap(i),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12 * (size / 108).clamp(0.6, 1.0))),
-        child: label,
+      child: _FlipTile(
+        faceUp: isWrong || isFound || isLit || isHint,
+        front: front,
+        back: MgData.tileEmpty,
+        radius: 12 * (size / 108).clamp(0.6, 1.0),
+        label: label,
       ),
     );
   }
@@ -841,6 +840,78 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
           Text('$value', style: AppFonts.baloo(fontSize: 26, fontWeight: FontWeight.w800)),
         ],
       ),
+    );
+  }
+}
+
+/// A grid tile that turns over like a card: face down = the empty slot,
+/// face up = the coloured block. Flips around the vertical axis with a
+/// little perspective; the face swaps at the half-way point.
+class _FlipTile extends StatefulWidget {
+  static const int flipMs = 300;
+
+  final bool faceUp;
+  final Color front;
+  final Color back;
+  final double radius;
+  final Widget? label;
+
+  const _FlipTile({required this.faceUp, required this.front, required this.back, required this.radius, this.label});
+
+  @override
+  State<_FlipTile> createState() => _FlipTileState();
+}
+
+class _FlipTileState extends State<_FlipTile> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: _FlipTile.flipMs),
+    value: widget.faceUp ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_FlipTile old) {
+    super.didUpdateWidget(old);
+    if (widget.faceUp != old.faceUp) {
+      widget.faceUp ? _c.forward() : _c.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final v = Curves.easeInOut.transform(_c.value);
+        final showFront = v >= 0.5;
+        // Face: un-mirror the front half so its number reads correctly.
+        final face = AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: showFront ? widget.front : widget.back,
+            borderRadius: BorderRadius.circular(widget.radius),
+          ),
+          child: showFront ? widget.label : null,
+        );
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.0015)
+            ..rotateY(pi * v)
+            // A tiny lift mid-flip sells the card turning over.
+            ..scale(1 + 0.08 * sin(pi * v)),
+          child: showFront
+              ? Transform(alignment: Alignment.center, transform: Matrix4.rotationY(pi), child: face)
+              : face,
+        );
+      },
     );
   }
 }

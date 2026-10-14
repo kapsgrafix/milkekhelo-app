@@ -319,7 +319,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return SaveProgressGate(
-      progressed: () => _turnsPlayed >= 6,
+      // Only while the match is in progress — not from the result screen.
+      progressed: () => !_gameOver && _turnsPlayed >= 6,
       background: SnlData.screenBg,
       onShow: () => _paused = true,
       child: ValueListenableBuilder<AppLang>(
