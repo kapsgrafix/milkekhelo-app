@@ -550,6 +550,14 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
                     ),
                     _buildScoreSection(t),
                     Expanded(child: _buildPlayArea()),
+                    // Footer: lives bottom-left (same line position as Memory Grid).
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: SizedBox(
+                        height: 36,
+                        child: Row(children: [LivesHearts(lives: _lives, max: BjData.maxLives)]),
+                      ),
+                    ),
                     const ScreenBottomBar(),
                   ],
                 ),
@@ -570,8 +578,8 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     );
   }
 
-  // Score Section: Best Score | Score, with the lives as hearts underneath
-  // (same layout as Memory Grid). Best shows the live best while you beat it.
+  // Score Section: Best Score | Score (lives are in the footer, bottom left,
+  // same as Memory Grid). Best shows the live best while you beat it.
   Widget _buildScoreSection(BjText t) {
     final number = AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w800, height: 17 / 15);
     Widget counter(int value) => TweenAnimationBuilder<double>(
@@ -581,18 +589,12 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
           builder: (context, v, _) => Text('${v.round()}', style: number),
         );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(child: _statBox(value: counter(max(_best, _score)), label: t.bestScore)),
-              const SizedBox(width: 12),
-              Expanded(child: _statBox(value: counter(_score), label: t.score)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LivesHearts(lives: _lives, max: BjData.maxLives),
+          Expanded(child: _statBox(value: counter(max(_best, _score)), label: t.bestScore)),
+          const SizedBox(width: 12),
+          Expanded(child: _statBox(value: counter(_score), label: t.score)),
         ],
       ),
     );
@@ -632,14 +634,12 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
         // above and below. On short screens the whole group scales down.
         const gap = 24.0; // board → tray
         const margin = 16.0; // minimum space above and below the group
-        // trayHeight = 5 × 20k + 4 + 24, with k = boardSize / 300 (tray
-        // pieces keep their size on a 360 phone).
-        final byHeight = (c.maxHeight - 2 * margin - gap - 28) / (1 + 100 / 300);
-        // A little smaller than before: 300 on a 360 phone (was 340).
-        final boardSize = min(min(300.0, c.maxWidth - 60), byHeight).clamp(200.0, 300.0).toDouble();
+        // trayHeight = 5 × 20k + 4 + 24, with k = boardSize / 340.
+        final byHeight = (c.maxHeight - 2 * margin - gap - 28) / (1 + 100 / 340);
+        final boardSize = min(min(340.0, c.maxWidth - 20), byHeight).clamp(200.0, 340.0).toDouble();
         final inner = boardSize - 10; // 2px border + 3px padding each side
         _cell = (inner - BjBoardPainter.gap * (BjData.size - 1)) / BjData.size;
-        final k = boardSize / 300;
+        final k = boardSize / 340;
         _trayCell = 20 * k;
         _trayGap = 1;
         final trayHeight = 5 * _trayCell + 4 * _trayGap + 24;

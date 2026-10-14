@@ -473,20 +473,14 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         ),
       );
     }
-    // Solo: Best Streak | Streak, with the lives as hearts underneath.
+    // Solo: Best Streak | Streak. (Lives are in the footer, bottom left.)
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(child: _statBox(value: Text('${max(_best, _streak)}', style: _statNumber), label: t.bestStreakLabel)),
-              const SizedBox(width: 12),
-              Expanded(child: _statBox(value: Text('$_streak', style: _statNumber), label: t.streak)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LivesHearts(lives: _lives, max: MgData.maxLives),
+          Expanded(child: _statBox(value: Text('${max(_best, _streak)}', style: _statNumber), label: t.bestStreakLabel)),
+          const SizedBox(width: 12),
+          Expanded(child: _statBox(value: Text('$_streak', style: _statNumber), label: t.streak)),
         ],
       ),
     );
@@ -540,54 +534,78 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     );
   }
 
+  /// Grid + status line form one unit, centred vertically between the score
+  /// boxes and the footer row (lives bottom-left, hint bottom-right).
   Widget _buildPlayArea(MgText t) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        // Status (16 × 1.25) + 12 + hint pill (36) + bottom breathing room.
-        const below = 20.0 + 12 + 36 + 20;
-        // A little smaller than full width: 296 on a 360 phone (was 340).
-        final gridSide = (c.maxWidth - 64).clamp(160.0, (c.maxHeight - below - 36).clamp(160.0, 2000.0)).toDouble();
-        const gap = 8.0;
-        final tile = (gridSide - gap * (_gridSize - 1)) / _gridSize;
-        return Column(
-          children: [
-            const Spacer(),
-            SizedBox.square(
-              dimension: gridSide,
-              child: Column(
-                children: [
-                  for (int r = 0; r < _gridSize; r++) ...[
-                    if (r > 0) const SizedBox(height: gap),
-                    Row(
-                      children: [
-                        for (int col = 0; col < _gridSize; col++) ...[
-                          if (col > 0) const SizedBox(width: gap),
-                          SizedBox.square(dimension: tile, child: _buildTile(r * _gridSize + col, tile)),
-                        ],
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 36),
-            SizedBox(
-              height: 20,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  _statusText(t),
-                  textAlign: TextAlign.center,
-                  style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800, height: 1.25, color: _statusColor()),
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, c) {
+              // Grid + 24 gap + status line (20) + breathing room above/below.
+              const below = 24.0 + 20;
+              const margin = 16.0;
+              // A little smaller than full width: 296 on a 360 phone.
+              final gridSide = (c.maxWidth - 64).clamp(160.0, (c.maxHeight - below - 2 * margin).clamp(160.0, 2000.0)).toDouble();
+              const gap = 8.0;
+              final tile = (gridSide - gap * (_gridSize - 1)) / _gridSize;
+              return Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox.square(
+                        dimension: gridSide,
+                        child: Column(
+                          children: [
+                            for (int r = 0; r < _gridSize; r++) ...[
+                              if (r > 0) const SizedBox(height: gap),
+                              Row(
+                                children: [
+                                  for (int col = 0; col < _gridSize; col++) ...[
+                                    if (col > 0) const SizedBox(width: gap),
+                                    SizedBox.square(dimension: tile, child: _buildTile(r * _gridSize + col, tile)),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 20,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _statusText(t),
+                            textAlign: TextAlign.center,
+                            style: AppFonts.baloo(fontSize: 16, fontWeight: FontWeight.w800, height: 1.25, color: _statusColor()),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              );
+            },
+          ),
+        ),
+        // Footer: lives bottom-left, hint bottom-right, on one line.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SizedBox(
+            height: 36,
+            child: Row(
+              children: [
+                if (!_isDuel) LivesHearts(lives: _lives, max: MgData.maxLives),
+                const Spacer(),
+                _buildHintButton(t),
+              ],
             ),
-            const SizedBox(height: 12),
-            _buildHintButton(t),
-            const Spacer(),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
