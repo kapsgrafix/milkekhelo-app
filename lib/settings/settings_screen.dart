@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/auth/auth_service.dart';
 import '../core/feedback/feedback_settings.dart';
 import '../core/feedback/fx.dart';
 import '../core/localization/app_language.dart';
@@ -26,8 +27,9 @@ import '../policy/policy_screen.dart';
 ///   670  50px ad strip (#010821)
 /// Content padding: 24px sides, 20px top, 28px between sections.
 ///
-/// Google / Facebook sign-in is UI only for now — the buttons show a
-/// "coming soon" note ([showSignInComingSoon]) until the login code is added.
+/// Account: signed out → helper text + Google / Facebook buttons;
+/// signed in → profile card (photo, name, email, provider) + Sign out.
+/// (Facebook shows "coming soon" until its app is set up.)
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -85,15 +87,27 @@ class SettingsScreen extends StatelessWidget {
                               const SizedBox(height: 28),
                               _SectionLabel(t.account),
                               const SizedBox(height: 10),
-                              Text(
-                                t.accountHelper,
-                                style: AppFonts.baloo(
-                                    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                              ValueListenableBuilder<AppUser?>(
+                                valueListenable: AuthService.instance.user,
+                                builder: (context, user, _) => user != null
+                                    ? _ProfileCard(user: user, t: t)
+                                    : Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            t.accountHelper,
+                                            style: AppFonts.baloo(
+                                                fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          SocialLoginButton.google(
+                                              onTap: () => signInFromButton(context, SignInProvider.google)),
+                                          const SizedBox(height: 12),
+                                          SocialLoginButton.facebook(
+                                              onTap: () => signInFromButton(context, SignInProvider.facebook)),
+                                        ],
+                                      ),
                               ),
-                              const SizedBox(height: 10),
-                              SocialLoginButton.google(onTap: () => showSignInComingSoon(context)),
-                              const SizedBox(height: 12),
-                              SocialLoginButton.facebook(onTap: () => showSignInComingSoon(context)),
                             ],
                           ),
                         ),
@@ -139,6 +153,9 @@ class _SettingsText {
   String get vibration => hi ? 'वाइब्रेशन' : 'Vibration';
   String get vibrationSub => hi ? 'टैप और जीत पर हल्का कंपन' : 'Haptic feedback on taps and wins';
   String get account => hi ? 'अकाउंट' : 'ACCOUNT';
+  String get signedInWith => hi ? 'से साइन इन' : 'Signed in with';
+  String get signOut => hi ? 'साइन आउट' : 'Sign out';
+  String get signedOut => hi ? 'साइन आउट हो गया' : 'Signed out';
   String get accountHelper => hi
       ? 'साइन इन करें ताकि आपकी प्रगति सेव रहे और किसी भी डिवाइस पर खेल सकें'
       : 'Sign in to save your progress and play across devices';
@@ -301,6 +318,125 @@ class SettingsToggle extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Signed-in state (not in Figma yet — built in the Settings style):
+/// surface card, radius 16, 1px border. Photo (or initial) · name · email
+/// · "Signed in with Google", then a full-width Sign out button.
+class _ProfileCard extends StatelessWidget {
+  final AppUser user;
+  final _SettingsText t;
+  const _ProfileCard({required this.user, required this.t});
+
+  @override
+  Widget build(BuildContext context) {
+    final providerName = user.provider == SignInProvider.google ? 'Google' : 'Facebook';
+    final initial = (user.name.trim().isNotEmpty ? user.name.trim()[0] : (user.email.isNotEmpty ? user.email[0] : '?')).toUpperCase();
+    Widget fallback() => Container(
+          color: AppColors.brandYellow,
+          alignment: Alignment.center,
+          child: Text(initial, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textOnLight)),
+        );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.brandYellow, width: 2),
+                ),
+                child: ClipOval(
+                  child: user.photoUrl.isEmpty
+                      ? fallback()
+                      : Image.network(
+                          user.photoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => fallback(),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name.isEmpty ? user.email : user.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.baloo(fontSize: 17, fontWeight: FontWeight.w700, height: 22 / 17),
+                    ),
+                    if (user.email.isNotEmpty && user.name.isNotEmpty)
+                      Text(
+                        user.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w500, height: 16 / 12, color: AppColors.textMuted),
+                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Image.asset(
+                          user.provider == SignInProvider.google
+                              ? 'assets/settings/google_logo.webp'
+                              : 'assets/settings/facebook_logo.webp',
+                          width: 14,
+                          height: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            t.hi ? '$providerName ${t.signedInWith}' : '${t.signedInWith} $providerName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Semantics(
+            button: true,
+            label: t.signOut,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () async {
+                Fx.tap();
+                await AuthService.instance.signOut();
+                if (context.mounted) showAppToast(context, t.signedOut);
+              },
+              child: Container(
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0x14FFFFFF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderDefault),
+                ),
+                child: Text(t.signOut, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

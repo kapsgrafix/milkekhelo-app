@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../auth/auth_service.dart';
 import '../feedback/fx.dart';
 import '../localization/app_language.dart';
 import '../theme/app_colors.dart';
@@ -19,8 +20,10 @@ class SocialLoginButton extends StatefulWidget {
   final Color fill;
   final Color textColor;
   final VoidCallback onTap;
+  final SignInProvider provider;
 
   const SocialLoginButton._({
+    required this.provider,
     required this.labelEn,
     required this.labelHi,
     required this.logo,
@@ -33,6 +36,7 @@ class SocialLoginButton extends StatefulWidget {
   factory SocialLoginButton.google({required VoidCallback onTap, bool compact = false}) => SocialLoginButton._(
         labelEn: compact ? 'Google' : 'Continue with Google',
         labelHi: compact ? 'Google' : 'Google से जारी रखें',
+        provider: SignInProvider.google,
         logo: 'assets/settings/google_logo.webp',
         fill: Colors.white,
         textColor: AppColors.textOnLight,
@@ -42,6 +46,7 @@ class SocialLoginButton extends StatefulWidget {
   factory SocialLoginButton.facebook({required VoidCallback onTap, bool compact = false}) => SocialLoginButton._(
         labelEn: compact ? 'Facebook' : 'Continue with Facebook',
         labelHi: compact ? 'Facebook' : 'Facebook से जारी रखें',
+        provider: SignInProvider.facebook,
         logo: 'assets/settings/facebook_logo.webp',
         fill: const Color(0xFF1877F2),
         textColor: Colors.white,
@@ -88,7 +93,17 @@ class _SocialLoginButtonState extends State<SocialLoginButton> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(widget.logo, width: 20, height: 20, filterQuality: FilterQuality.medium),
+                // While a sign-in is running, the logo becomes a small spinner.
+                ValueListenableBuilder<bool>(
+                  valueListenable: AuthService.instance.busy,
+                  builder: (context, busy, _) => busy && widget.provider == SignInProvider.google
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: widget.textColor),
+                        )
+                      : Image.asset(widget.logo, width: 20, height: 20, filterQuality: FilterQuality.medium),
+                ),
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
@@ -107,23 +122,64 @@ class _SocialLoginButtonState extends State<SocialLoginButton> {
   }
 }
 
-/// Google / Facebook sign-in isn't wired up yet — the buttons show this
-/// short note, floating just above the 50px ad strip.
-void showSignInComingSoon(BuildContext context) {
-  Fx.tap();
-  final hi = AppLanguage.instance.isHindi;
+/// A short floating note just above the 50px ad strip.
+void showAppToast(BuildContext context, String text, {Duration duration = const Duration(seconds: 2)}) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
   messenger.hideCurrentSnackBar();
   messenger.showSnackBar(SnackBar(
-    content: Text(
-      hi ? 'साइन इन जल्द आ रहा है!' : 'Sign in is coming soon!',
-      style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600),
-    ),
+    content: Text(text, style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600)),
     behavior: SnackBarBehavior.floating,
     backgroundColor: const Color(0xFF16234A),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     margin: EdgeInsets.fromLTRB(24, 0, 24, 66 + MediaQuery.of(context).padding.bottom),
-    duration: const Duration(seconds: 2),
+    duration: duration,
   ));
+}
+
+/// For sign-in methods that aren't wired up yet (Facebook, for now).
+void showSignInComingSoon(BuildContext context) {
+  Fx.tap();
+  final hi = AppLanguage.instance.isHindi;
+  showAppToast(context, hi ? 'Facebook साइन इन जल्द आ रहा है!' : 'Facebook sign in is coming soon!');
+}
+
+/// Runs a sign-in from any button (Settings, Save Progress overlay) and
+/// shows the result as a toast. Returns true when the player is signed in.
+/// Pass a [toastContext] that stays on screen (e.g. the game screen) when
+/// the button lives in a dialog that may close.
+Future<bool> signInFromButton(BuildContext context, SignInProvider provider, {BuildContext? toastContext}) async {
+  if (provider == SignInProvider.facebook) {
+    showSignInComingSoon(context);
+    return false;
+  }
+  Fx.tap();
+  final hi = AppLanguage.instance.isHindi;
+  final target = toastContext ?? context;
+  try {
+    final u = await AuthService.instance.signInWithGoogle();
+    final first = u.name.trim().split(' ').first;
+    if (target.mounted) {
+      Fx.toggle();
+      showAppToast(target, hi ? 'साइन इन हो गया${first.isEmpty ? '' : ', $first'}! 🎉' : 'Signed in${first.isEmpty ? '' : ' as $first'}! 🎉');
+    }
+    return true;
+  } on AuthException catch (e) {
+    if (e.cancelled || e.code == 'busy') return false;
+    debugPrint('Sign-in failed: $e');
+    if (target.mounted) {
+      final why = e.code == 'network'
+          ? (hi ? 'इंटरनेट कनेक्शन देखें।' : 'Check your internet connection.')
+          : (hi ? 'फिर से कोशिश करें। (${e.code})' : 'Please try again. (${e.code})');
+      showAppToast(target, (hi ? 'साइन इन नहीं हो सका। ' : "Couldn't sign in. ") + why, duration: const Duration(seconds: 4));
+    }
+    return false;
+  } catch (e) {
+    debugPrint('Sign-in failed: $e');
+    if (target.mounted) {
+      showAppToast(target, hi ? 'साइन इन नहीं हो सका। फिर से कोशिश करें।' : "Couldn't sign in. Please try again.",
+          duration: const Duration(seconds: 4));
+    }
+    return false;
+  }
 }

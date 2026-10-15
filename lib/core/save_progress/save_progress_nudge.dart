@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/auth_service.dart';
 import '../feedback/fx.dart';
 import '../localization/app_language.dart';
 import '../theme/app_colors.dart';
@@ -49,7 +50,8 @@ class SaveProgressNudge {
   /// True when the overlay may be shown now.
   static bool ready({required bool progressed}) {
     final count = _shownCount;
-    return progressed && count != null && count < maxShows;
+    // Signed-in players already have their progress saved — never nudge them.
+    return progressed && count != null && count < maxShows && !AuthService.instance.signedIn;
   }
 
   /// Shows the overlay. Completes with true if the player chose "Exit the
@@ -173,9 +175,15 @@ class SaveProgressOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     void close() => Navigator.of(context).pop(false); // stay in the game
     void exitGame() => Navigator.of(context).pop(true); // carry on leaving
-    void signIn() {
-      showSignInComingSoon(context);
-      close(); // stay in the game for now (sign-in isn't wired up yet)
+    Future<void> signIn(SignInProvider provider) async {
+      if (provider == SignInProvider.facebook) {
+        showSignInComingSoon(context); // not wired up yet
+        close();
+        return;
+      }
+      // Signed in → close the overlay and keep playing.
+      final ok = await signInFromButton(context, provider);
+      if (ok && context.mounted) close();
     }
 
     return ValueListenableBuilder<AppLang>(
@@ -225,9 +233,9 @@ class SaveProgressOverlay extends StatelessWidget {
                           // Google and Facebook side by side.
                           Row(
                             children: [
-                              Expanded(child: SocialLoginButton.google(onTap: signIn, compact: true)),
+                              Expanded(child: SocialLoginButton.google(onTap: () => signIn(SignInProvider.google), compact: true)),
                               const SizedBox(width: 10),
-                              Expanded(child: SocialLoginButton.facebook(onTap: signIn, compact: true)),
+                              Expanded(child: SocialLoginButton.facebook(onTap: () => signIn(SignInProvider.facebook), compact: true)),
                             ],
                           ),
                           const SizedBox(height: 8),

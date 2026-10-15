@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/auth/auth_service.dart';
 import 'core/feedback/app_audio.dart';
 import 'core/feedback/feedback_settings.dart';
 import 'core/theme/app_colors.dart';
@@ -29,6 +30,8 @@ Future<void> main() async {
   // Music / sound / vibration preferences must be known before anything
   // plays; audio itself preloads in the background.
   await FeedbackSettings.instance.load();
+  // Restore a saved sign-in (local only, fast).
+  await AuthService.instance.load();
   runApp(const MilKeKheloApp());
   AppAudio.instance.init();
 }
