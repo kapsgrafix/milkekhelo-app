@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../auth/account_ui.dart';
 import '../auth/auth_service.dart';
 import '../feedback/fx.dart';
 import '../localization/app_language.dart';
@@ -144,11 +145,16 @@ void showSignInComingSoon(BuildContext context) {
   showAppToast(context, hi ? 'Facebook साइन इन जल्द आ रहा है!' : 'Facebook sign in is coming soon!');
 }
 
-/// Runs a sign-in from any button (Settings, Save Progress overlay) and
-/// shows the result as a toast. Returns true when the player is signed in.
-/// Pass a [toastContext] that stays on screen (e.g. the game screen) when
-/// the button lives in a dialog that may close.
-Future<bool> signInFromButton(BuildContext context, SignInProvider provider, {BuildContext? toastContext}) async {
+/// Runs a sign-in from any button (Settings, Save Progress overlay).
+/// Success → the Welcome dialog (Figma 460:828); failure → a short toast.
+/// [beforeWelcome] runs first on success (e.g. to close the overlay the
+/// button lives in). Returns true when the player is signed in.
+Future<bool> signInFromButton(
+  BuildContext context,
+  SignInProvider provider, {
+  BuildContext? toastContext,
+  VoidCallback? beforeWelcome,
+}) async {
   if (provider == SignInProvider.facebook) {
     showSignInComingSoon(context);
     return false;
@@ -156,16 +162,27 @@ Future<bool> signInFromButton(BuildContext context, SignInProvider provider, {Bu
   Fx.tap();
   final hi = AppLanguage.instance.isHindi;
   final target = toastContext ?? context;
+  final nav = Navigator.of(context, rootNavigator: true);
   try {
     final u = await AuthService.instance.signInWithGoogle();
-    final first = u.name.trim().split(' ').first;
-    if (target.mounted) {
-      Fx.toggle();
-      showAppToast(target, hi ? 'साइन इन हो गया${first.isEmpty ? '' : ', $first'}! 🎉' : 'Signed in${first.isEmpty ? '' : ' as $first'}! 🎉');
+    beforeWelcome?.call();
+    if (nav.mounted) {
+      Fx.roundWin();
+      showWelcomeDialog(nav.context, u);
     }
     return true;
   } on AuthException catch (e) {
-    if (e.cancelled || e.code == 'busy') return false;
+    if (e.code == 'busy') return false;
+    if (e.cancelled) {
+      // A real "back" from the account picker has no reason; anything else
+      // (e.g. "[16] Account reauth failed") is a setup problem worth showing.
+      final reason = e.detail ?? '';
+      if (reason.isNotEmpty && target.mounted) {
+        showAppToast(target, (hi ? 'साइन इन नहीं हो सका: ' : "Couldn't sign in: ") + reason,
+            duration: const Duration(seconds: 6));
+      }
+      return false;
+    }
     debugPrint('Sign-in failed: $e');
     if (target.mounted) {
       final why = e.code == 'network'

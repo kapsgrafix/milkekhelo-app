@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +6,7 @@ import '../feedback/fx.dart';
 import '../localization/app_language.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/chunky_button.dart';
 import '../widgets/social_login_button.dart';
 
 /// "Don't lose your game!" — the sign-in nudge (Figma "Save Progress
@@ -159,9 +158,10 @@ class _SaveProgressGateState extends State<SaveProgressGate> {
 /// Figma "Save Progress Overlay" (401:648): 320px card, radius 28, 1px
 /// border/default, shadow 0 16 40 black 45%. The fill is the current
 /// game's screen colour so it sits naturally on every game.
-///   Body: 24 top / 20 sides / 18 bottom, 16px gaps:
-///     illustration (280×118) · title + subtitle (6px) ·
-///     Google + Facebook (10px) · trust line
+///   Body: 24 top / 20 sides / 18 bottom, 16px gaps (Figma 461:2111):
+///     save badge (280×100) · title + subtitle (6px) ·
+///     [Google | Facebook] + trust line (8px) · dull OR divider ·
+///     Primary "Leave game" button
 ///   Close: 36×36 module/red chip, radius 12, 3px ledge, 11px from the
 ///   top and 13px from the right.
 class SaveProgressOverlay extends StatelessWidget {
@@ -181,9 +181,8 @@ class SaveProgressOverlay extends StatelessWidget {
         close();
         return;
       }
-      // Signed in → close the overlay and keep playing.
-      final ok = await signInFromButton(context, provider);
-      if (ok && context.mounted) close();
+      // Signed in → close the overlay (stay in the game), then Welcome.
+      await signInFromButton(context, provider, beforeWelcome: close);
     }
 
     return ValueListenableBuilder<AppLang>(
@@ -210,10 +209,8 @@ class SaveProgressOverlay extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: _Illustration(saved: hi ? 'सेव!' : 'SAVED!'),
-                          ),
+                          // Figma (461:2111): save badge illustration, 280×100.
+                          const FittedBox(fit: BoxFit.scaleDown, child: _SaveBadge()),
                           const SizedBox(height: 16),
                           Text(
                             hi ? 'अपना गेम मत खोइए!' : "Don't lose your game!",
@@ -230,7 +227,7 @@ class SaveProgressOverlay extends StatelessWidget {
                                 fontSize: 14, fontWeight: FontWeight.w500, height: 1.4, color: AppColors.textMuted),
                           ),
                           const SizedBox(height: 16),
-                          // Google and Facebook side by side.
+                          // Sign In Group: Google + Facebook side by side, trust line.
                           Row(
                             children: [
                               Expanded(child: SocialLoginButton.google(onTap: () => signIn(SignInProvider.google), compact: true)),
@@ -239,31 +236,35 @@ class SaveProgressOverlay extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Semantics(
-                            button: true,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                Fx.tap();
-                                exitGame();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // touch target
-                                child: Text(
-                                  hi ? 'गेम से बाहर निकलें' : 'Exit the game',
-                                  style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w600).copyWith(
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           Text(
                             hi ? 'हम आपसे पूछे बिना कभी कुछ पोस्ट नहीं करेंगे।' : "We'll never post anything without asking.",
                             textAlign: TextAlign.center,
                             style: AppFonts.baloo(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 16),
+                          // Dull "OR" divider (60% opacity).
+                          Opacity(
+                            opacity: 0.6,
+                            child: Row(
+                              children: [
+                                Expanded(child: Container(height: 1, color: AppColors.borderDefault)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  child: Text(
+                                    hi ? 'या' : 'OR',
+                                    style: AppFonts.baloo(
+                                        fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.96, color: AppColors.textMuted),
+                                  ),
+                                ),
+                                Expanded(child: Container(height: 1, color: AppColors.borderDefault)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ChunkyButton(
+                            label: hi ? 'गेम छोड़ें' : 'Leave game',
+                            width: double.infinity,
+                            onTap: exitGame,
                           ),
                         ],
                       ),
@@ -304,86 +305,91 @@ class SaveProgressOverlay extends StatelessWidget {
   }
 }
 
-/// The 280×118 emoji cluster: cloud, controller, dice, star, sparkle, a
-/// tilted yellow "SAVED!" badge and confetti — positions from Figma
-/// (each rotated piece is centred in its rotated bounding box).
-class _Illustration extends StatelessWidget {
-  final String saved;
-  const _Illustration({required this.saved});
-
-  static double _deg(double d) => d * pi / 180;
-
-  Widget _emoji(String e, double size) => Text(e, style: TextStyle(fontSize: size, height: 1.2));
-
-  Widget _rotated({required double left, required double top, required double w, required double h, required double deg, required Widget child}) {
-    return Positioned(
-      left: left,
-      top: top,
-      width: w,
-      height: h,
-      child: OverflowBox(
-        maxWidth: double.infinity,
-        maxHeight: double.infinity,
-        child: Transform.rotate(angle: _deg(deg), child: child),
-      ),
-    );
-  }
-
-  /// [left]/[top]/[bw]/[bh] are the rotated bounding box from Figma;
-  /// [w]×[h] is the confetti piece before rotation.
-  Widget _confetti(double left, double top, double bw, double bh, double w, double h, double deg, Color c, double r) {
-    return _rotated(
-      left: left,
-      top: top,
-      w: bw,
-      h: bh,
-      deg: deg,
-      child: Container(width: w, height: h, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(r))),
-    );
-  }
+/// Figma "Illustration" (save badge, 280×100): a soft blue glow, a white
+/// cloud with a green check badge, two yellow sparkles and two white
+/// twinkles. Drawn in code so it stays crisp and sits on any game colour.
+class _SaveBadge extends StatelessWidget {
+  const _SaveBadge();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 280,
-      height: 118,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(left: 94, top: 2, child: _emoji('☁️', 92)),
-          _rotated(left: 154.93, top: 80, w: 40.33, h: 40.33, deg: 12, child: _emoji('🎮', 34)),
-          _rotated(left: 76, top: 79.23, w: 33.94, h: 33.94, deg: -14, child: _emoji('🎲', 28)),
-          _rotated(left: 46.18, top: 14, w: 25.49, h: 25.49, deg: 10, child: _emoji('⭐', 22)),
-          Positioned(left: 212, top: 40, child: _emoji('✨', 20)),
-          _rotated(
-            left: 114.8,
-            top: 58,
-            w: 66.58,
-            h: 31.68,
-            deg: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.brandYellow,
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: const [BoxShadow(color: Color(0xFF7A4A00), offset: Offset(0, 2))],
-              ),
-              child: Text(
-                saved,
-                style: AppFonts.baloo(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF3B2503), letterSpacing: 0.72),
-              ),
-            ),
-          ),
-          _confetti(14, 17.77, 11.6, 9.66, 10, 6, -25, const Color(0xFFFFC53D), 3),
-          _confetti(44, 94.34, 11.31, 11.31, 8, 8, -45, const Color(0xFFFF5D8F), 4),
-          _confetti(228.29, 18, 10.17, 7.78, 9, 5, 20, const Color(0xFF33C481), 2.5),
-          _confetti(256, 104.19, 8.57, 8.57, 7, 7, -15, const Color(0xFFFF7A45), 3.5),
-          _confetti(202, 119.34, 9.33, 11.16, 10, 5, -60, const Color(0xFF9B7FEA), 2.5),
-          _confetti(2, 70, 6, 6, 6, 6, 0, Colors.white, 3),
-          _confetti(272, 60, 6, 6, 6, 6, 0, const Color(0xFFFFE08A), 3),
-        ],
-      ),
-    );
+    return const SizedBox(width: 280, height: 100, child: CustomPaint(painter: _SaveBadgePainter()));
   }
+}
+
+class _SaveBadgePainter extends CustomPainter {
+  const _SaveBadgePainter();
+
+  static void _sparkle(Canvas canvas, Offset c, double r, Color color) {
+    // Four-point star with concave sides.
+    final p = Path()..moveTo(c.dx, c.dy - r);
+    p.quadraticBezierTo(c.dx + r * 0.18, c.dy - r * 0.18, c.dx + r, c.dy);
+    p.quadraticBezierTo(c.dx + r * 0.18, c.dy + r * 0.18, c.dx, c.dy + r);
+    p.quadraticBezierTo(c.dx - r * 0.18, c.dy + r * 0.18, c.dx - r, c.dy);
+    p.quadraticBezierTo(c.dx - r * 0.18, c.dy - r * 0.18, c.dx, c.dy - r);
+    canvas.drawPath(p, Paint()..color = color);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const glowC = Offset(128, 50);
+    // Glow (may spill a little outside the box, like the Figma export).
+    canvas.drawCircle(
+      glowC,
+      78,
+      Paint()
+        ..shader = const RadialGradient(colors: [Color(0x665B7BFF), Color(0x005B7BFF)])
+            .createShader(Rect.fromCircle(center: glowC, radius: 78)),
+    );
+
+    // Cloud: a pill base plus three round bumps.
+    final cloud = Path()
+      ..addRRect(RRect.fromRectAndRadius(const Rect.fromLTRB(86, 56, 170, 84), const Radius.circular(14)))
+      ..addOval(Rect.fromCircle(center: const Offset(108, 58), radius: 19))
+      ..addOval(Rect.fromCircle(center: const Offset(130, 44), radius: 26))
+      ..addOval(Rect.fromCircle(center: const Offset(153, 58), radius: 17));
+    canvas.drawPath(
+      cloud.shift(const Offset(0, 3)),
+      Paint()
+        ..color = const Color(0x40000820)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawPath(
+      cloud,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFE6EBFF), Color(0xFFB9C6FF)],
+          stops: [0, 0.55, 1],
+        ).createShader(const Rect.fromLTRB(86, 18, 170, 84)),
+    );
+
+    // Green check badge with a white ring.
+    const badgeC = Offset(165, 76);
+    canvas.drawCircle(badgeC, 18, Paint()..color = Colors.white);
+    canvas.drawCircle(badgeC, 15, Paint()..color = const Color(0xFF33C481));
+    final tick = Path()
+      ..moveTo(badgeC.dx - 7, badgeC.dy + 0.5)
+      ..lineTo(badgeC.dx - 2, badgeC.dy + 5.5)
+      ..lineTo(badgeC.dx + 7.5, badgeC.dy - 5);
+    canvas.drawPath(
+      tick,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+
+    // Sparkles.
+    _sparkle(canvas, const Offset(74, 19), 8, const Color(0xFFFFC53D));
+    _sparkle(canvas, const Offset(214, 28), 6, const Color(0xFFFFC53D));
+    _sparkle(canvas, const Offset(58, 46), 3.5, const Color(0xCCFFFFFF));
+    _sparkle(canvas, const Offset(218, 60), 3.5, const Color(0xCCFFFFFF));
+  }
+
+  @override
+  bool shouldRepaint(_SaveBadgePainter old) => false;
 }

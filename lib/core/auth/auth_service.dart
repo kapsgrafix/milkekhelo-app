@@ -122,7 +122,9 @@ class AuthService {
       try {
         account = await GoogleSignIn.instance.authenticate(scopeHint: const ['email']);
       } on GoogleSignInException catch (e) {
-        if (e.code == GoogleSignInExceptionCode.canceled) throw const AuthException('cancelled');
+        // Note: a misconfigured app (fingerprint not registered with Google)
+        // is also reported as "canceled" — keep Google's reason so it shows.
+        if (e.code == GoogleSignInExceptionCode.canceled) throw AuthException('cancelled', e.description);
         throw AuthException('google_${e.code.name}', e.description);
       }
       final googleIdToken = account.authentication.idToken;
@@ -218,6 +220,54 @@ class AuthService {
         await signOut();
       }
       return null;
+    }
+  }
+
+  /// Permanently deletes the player's account and their saved data.
+  /// Firebase asks for a recent sign-in before deleting; if the session is
+  /// too old, Google sign-in runs again first (the account picker shows).
+  Future<void> deleteAccount() async {
+    final u = user.value;
+    if (u == null) return;
+    var token = await idToken();
+    if (token == null) throw const AuthException('not_signed_in');
+
+    // Saved data first (best scores / games) — ignore if there's none yet.
+    await _deleteUrl(Uri.parse('${AuthConfig.databaseUrl}/users/${u.uid}.json?auth=$token'));
+
+    Future<void> deleteUser(String t) => _post(
+          Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${AuthConfig.apiKey}'),
+          jsonEncode({'idToken': t}),
+          'application/json',
+        );
+    try {
+      await deleteUser(token);
+    } on AuthException catch (e) {
+      if (!e.code.contains('CREDENTIAL_TOO_OLD') || u.provider != SignInProvider.google) rethrow;
+      await signInWithGoogle(); // fresh sign-in, then try again
+      token = await idToken();
+      if (token == null) throw const AuthException('not_signed_in');
+      await deleteUser(token);
+    }
+    if (u.provider == SignInProvider.google) {
+      try {
+        await _ensureGoogle();
+        await GoogleSignIn.instance.disconnect(); // also forget the app grant
+      } catch (_) {}
+    }
+    await signOut();
+  }
+
+  Future<void> _deleteUrl(Uri url) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final req = await client.deleteUrl(url);
+      final resp = await req.close().timeout(const Duration(seconds: 20));
+      await resp.drain<void>();
+    } catch (_) {
+      // Best effort.
+    } finally {
+      client.close(force: true);
     }
   }
 

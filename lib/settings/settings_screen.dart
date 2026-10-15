@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/auth/account_ui.dart';
 import '../core/auth/auth_service.dart';
 import '../core/feedback/feedback_settings.dart';
 import '../core/feedback/fx.dart';
@@ -16,13 +17,13 @@ import '../policy/policy_screen.dart';
 /// 360×720). Opened from the gear on the Home header; replaces the old
 /// menu bottom sheet.
 ///
-/// Figma layout (y from frame top):
+/// Figma layout (Settings section 461:2045, Oct 15 2026), y from top:
 ///   0    Header (Type=Game Title): back · "Settings" · language        56
-///   76   PREFERENCES label, then the toggle card (surface, 1px border,
-///        radius 16): Music · Sound Effects · Vibration, 62px rows,
-///        1px dividers. Same three settings as the old menu sheet.
-///   322  ACCOUNT label, helper text, Google + Facebook buttons
-///        (48px, radius 16, 12px apart)
+///   76   ACCOUNT label, then — signed out: helper text + Google /
+///        Facebook buttons (48px, radius 16, 12px apart); signed in: the
+///        profile card (avatar + provider badge · name · "⋮" menu)
+///   +28  PREFERENCES label, then the toggle card (surface, 1px border,
+///        radius 16): Music · Sound Effects · Vibration, 62px rows
 ///   606  Privacy Policy link + version — pinned 20px above the ad strip
 ///   670  50px ad strip (#010821)
 /// Content padding: 24px sides, 20px top, 28px between sections.
@@ -81,10 +82,7 @@ class SettingsScreen extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                           sliver: SliverList.list(
                             children: [
-                              _SectionLabel(t.preferences),
-                              const SizedBox(height: 10),
-                              _PreferencesCard(t: t),
-                              const SizedBox(height: 28),
+                              // Figma (Oct 15): Account first, then Preferences.
                               _SectionLabel(t.account),
                               const SizedBox(height: 10),
                               ValueListenableBuilder<AppUser?>(
@@ -108,6 +106,10 @@ class SettingsScreen extends StatelessWidget {
                                         ],
                                       ),
                               ),
+                              const SizedBox(height: 28),
+                              _SectionLabel(t.preferences),
+                              const SizedBox(height: 10),
+                              _PreferencesCard(t: t),
                             ],
                           ),
                         ),
@@ -154,8 +156,6 @@ class _SettingsText {
   String get vibrationSub => hi ? 'टैप और जीत पर हल्का कंपन' : 'Haptic feedback on taps and wins';
   String get account => hi ? 'अकाउंट' : 'ACCOUNT';
   String get signedInWith => hi ? 'से साइन इन' : 'Signed in with';
-  String get signOut => hi ? 'साइन आउट' : 'Sign out';
-  String get signedOut => hi ? 'साइन आउट हो गया' : 'Signed out';
   String get accountHelper => hi
       ? 'साइन इन करें ताकि आपकी प्रगति सेव रहे और किसी भी डिवाइस पर खेल सकें'
       : 'Sign in to save your progress and play across devices';
@@ -323,9 +323,11 @@ class SettingsToggle extends StatelessWidget {
   }
 }
 
-/// Signed-in state (not in Figma yet — built in the Settings style):
-/// surface card, radius 16, 1px border. Photo (or initial) · name · email
-/// · "Signed in with Google", then a full-width Sign out button.
+/// Figma "Profile Card" (455:762): surface, 1px border, radius 16,
+/// padding 16, gap 14 — 56px avatar with the provider badge · name
+/// (ExtraBold 18/24) over "Signed in with Google" (Medium 12/16, muted),
+/// 4px apart · 32px "⋮" button that opens the account menu
+/// (Log out / Delete profile), each with its confirmation dialog.
 class _ProfileCard extends StatelessWidget {
   final AppUser user;
   final _SettingsText t;
@@ -334,12 +336,6 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final providerName = user.provider == SignInProvider.google ? 'Google' : 'Facebook';
-    final initial = (user.name.trim().isNotEmpty ? user.name.trim()[0] : (user.email.isNotEmpty ? user.email[0] : '?')).toUpperCase();
-    Widget fallback() => Container(
-          color: AppColors.brandYellow,
-          alignment: Alignment.center,
-          child: Text(initial, style: AppFonts.baloo(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textOnLight)),
-        );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -347,96 +343,106 @@ class _ProfileCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderDefault),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.brandYellow, width: 2),
+          UserAvatar(user: user, size: 56, badge: AvatarBadge.provider),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.name.isEmpty ? user.email : user.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.baloo(fontSize: 18, fontWeight: FontWeight.w800, height: 24 / 18),
                 ),
-                child: ClipOval(
-                  child: user.photoUrl.isEmpty
-                      ? fallback()
-                      : Image.network(
-                          user.photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => fallback(),
-                        ),
+                const SizedBox(height: 4),
+                Text(
+                  t.hi ? '$providerName ${t.signedInWith}' : '${t.signedInWith} $providerName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w500, height: 16 / 12, color: AppColors.textMuted),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.name.isEmpty ? user.email : user.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppFonts.baloo(fontSize: 17, fontWeight: FontWeight.w700, height: 22 / 17),
-                    ),
-                    if (user.email.isNotEmpty && user.name.isNotEmpty)
-                      Text(
-                        user.email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w500, height: 16 / 12, color: AppColors.textMuted),
-                      ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Image.asset(
-                          user.provider == SignInProvider.google
-                              ? 'assets/settings/google_logo.webp'
-                              : 'assets/settings/facebook_logo.webp',
-                          width: 14,
-                          height: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            t.hi ? '$providerName ${t.signedInWith}' : '${t.signedInWith} $providerName',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Semantics(
-            button: true,
-            label: t.signOut,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () async {
-                Fx.tap();
-                await AuthService.instance.signOut();
-                if (context.mounted) showAppToast(context, t.signedOut);
-              },
-              child: Container(
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0x14FFFFFF),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderDefault),
-                ),
-                child: Text(t.signOut, style: AppFonts.baloo(fontSize: 15, fontWeight: FontWeight.w700)),
-              ),
+              ],
             ),
           ),
+          const _MoreButton(),
         ],
+      ),
+    );
+  }
+}
+
+/// 32px "⋮" button; while the menu is open it shows the surface chip
+/// (Figma "Settings - Account Menu").
+class _MoreButton extends StatefulWidget {
+  const _MoreButton();
+
+  @override
+  State<_MoreButton> createState() => _MoreButtonState();
+}
+
+class _MoreButtonState extends State<_MoreButton> {
+  bool _open = false;
+
+  Future<void> _openMenu() async {
+    Fx.tap();
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final anchor = box.localToGlobal(Offset.zero) & box.size;
+    setState(() => _open = true);
+    final action = await showAccountMenu(context, anchor: anchor);
+    if (!mounted) return;
+    setState(() => _open = false);
+    switch (action) {
+      case AccountMenuAction.logOut:
+        if (await showLogoutConfirm(context)) {
+          await AuthService.instance.signOut();
+          if (mounted) showAppToast(context, AppLanguage.instance.isHindi ? 'लॉग आउट हो गया' : 'Logged out');
+        }
+      case AccountMenuAction.delete:
+        if (await showDeleteConfirm(context)) {
+          final hi = AppLanguage.instance.isHindi;
+          try {
+            await AuthService.instance.deleteAccount();
+            if (mounted) showAppToast(context, hi ? 'प्रोफ़ाइल डिलीट हो गई' : 'Profile deleted');
+          } on AuthException catch (e) {
+            if (mounted && !e.cancelled) {
+              showAppToast(
+                context,
+                (hi ? 'प्रोफ़ाइल डिलीट नहीं हो सकी। ' : "Couldn't delete the profile. ") +
+                    (e.code == 'network' ? (hi ? 'इंटरनेट देखें।' : 'Check your internet.') : '(${e.code})'),
+                duration: const Duration(seconds: 4),
+              );
+            }
+          }
+        }
+      case null:
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: AppLanguage.instance.isHindi ? 'अकाउंट विकल्प' : 'Account options',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _openMenu,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _open ? AppColors.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _open ? AppColors.borderDefault : Colors.transparent),
+          ),
+          child: const Icon(Icons.more_vert_rounded, size: 22, color: AppColors.textPrimary),
+        ),
       ),
     );
   }
