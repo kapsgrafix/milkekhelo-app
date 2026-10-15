@@ -10,6 +10,7 @@ class BjText {
   String get title => _hi ? 'ब्लॉक जोड़ो' : 'Block Jodo';
   String get score => _hi ? 'स्कोर' : 'Score';
   String get bestScore => _hi ? 'बेस्ट स्कोर' : 'Best Score';
+  String get newBestScore => _hi ? 'नया बेस्ट स्कोर!' : 'New Best Score!';
   String get lives => _hi ? 'जानें' : 'Lives';
 
   // Praise banners (by lines cleared in one move).

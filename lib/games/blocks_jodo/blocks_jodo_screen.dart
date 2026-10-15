@@ -14,6 +14,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/lives_hearts.dart';
+import '../../core/widgets/new_best_banner.dart';
 import '../../core/widgets/game_header.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'bj_data.dart';
@@ -54,6 +55,8 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   int _combo = 0;
   int _movesSinceClear = 0;
   bool _bestAnnounced = false;
+  bool _showNewBest = false; // glossy "New Best Score!" over the board
+  int _newBestKey = 0;
   bool _newBest = false;
   bool _busy = false; // a life is being lost / board rescued
   bool _gameOver = false;
@@ -193,6 +196,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     _combo = 0;
     _movesSinceClear = 0;
     _bestAnnounced = false;
+    _showNewBest = false;
     _newBest = false;
     _busy = false;
     _gameOver = false;
@@ -318,9 +322,15 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     _score += gained;
     if (!_bestAnnounced && _best > 0 && _score > _best) {
       _bestAnnounced = true;
+      // New best score: confetti, the win sound and a glossy 3D title.
       _after(lines.isEmpty ? 150 : 900, () {
-        Fx.roundWin();
-        setState(() => _showBanner(text.newBest, edge: const Color(0xFF1E6A44)));
+        Fx.win();
+        _spawnConfetti();
+        setState(() {
+          _newBestKey++;
+          _showNewBest = true;
+        });
+        _after(NewBestBanner.duration.inMilliseconds, () => setState(() => _showNewBest = false));
       });
     }
 
@@ -568,6 +578,10 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
                 ),
                 if (_dragSlot != null) _buildDragged(),
                 if (_banner != null) _buildBanner(),
+                if (_showNewBest)
+                  Positioned.fill(
+                    child: NewBestBanner(key: ValueKey(_newBestKey), title: t.newBestScore, value: max(_best, _score)),
+                  ),
                 if (_showGameOver) _buildGameOver(t),
                 Positioned.fill(
                   child: IgnorePointer(

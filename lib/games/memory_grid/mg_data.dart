@@ -13,7 +13,7 @@ class MgData {
   static const Map<String, MgLevel> levels = {
     'easy': MgLevel(size: 3, dots: 4),
     'medium': MgLevel(size: 4, dots: 7),
-    'hard': MgLevel(size: 5, dots: 10),
+    'hard': MgLevel(size: 5, dots: 8),
   };
 
   static const Map<String, int> revealMs = {'easy': 500, 'medium': 1000, 'hard': 1500};

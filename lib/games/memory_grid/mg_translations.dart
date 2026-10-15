@@ -44,6 +44,7 @@ class MgText {
   String get hint => _hi ? 'हिंट' : 'Hint';
   String get streak => _hi ? 'स्ट्रीक' : 'Streak';
   String get bestStreakLabel => _hi ? 'बेस्ट स्ट्रीक' : 'Best Streak';
+  String get newBestStreak => _hi ? 'नई बेस्ट स्ट्रीक!' : 'New Best Streak!';
   String get lives => _hi ? 'जानें' : 'Lives';
 
   String mode(String level) {

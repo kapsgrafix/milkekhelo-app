@@ -13,6 +13,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
 import '../../core/widgets/lives_hearts.dart';
+import '../../core/widgets/new_best_banner.dart';
 import '../../core/widgets/player_score_chip.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'memory_grid_home_screen.dart' show MgHowToPlaySheet;
@@ -62,7 +63,11 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   int _lives = MgData.maxLives;
   int _hints = MgData.maxHints;
   bool _firstEasyRound = false;
-  int _best = 0;
+  int _best = 0; // best streak for THIS level (kept separately per level)
+  bool _bestAnnounced = false; // "New Best Streak!" shown this game
+  bool _showNewBest = false;
+  int _newBestKey = 0;
+  Timer? _newBestTimer;
 
   // Duel state.
   final List<int> _duelScores = [0, 0];
@@ -99,21 +104,26 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     });
   }
 
+  /// Separate best streak per level: mg-best-easy / mg-best-hard / …
+  String get _bestKey => 'mg-best-${widget.level}';
+
   Future<void> _loadBest() async {
     final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getInt('mg-best') ?? 0;
+    if (_isDuel) return;
+    final v = prefs.getInt(_bestKey) ?? 0;
     if (mounted) setState(() => _best = v);
   }
 
   Future<void> _saveBest(int v) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('mg-best', v);
+    await prefs.setInt(_bestKey, v);
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
     _flashTimer?.cancel();
+    _newBestTimer?.cancel();
     super.dispose();
   }
 
@@ -195,13 +205,22 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       _phase = _Phase.idle;
       _streak++;
     });
+    var celebrate = false;
     if (_streak > _best) {
+      // Beating a real record (not the very first game) earns the big
+      // "New Best Streak!" moment, once per game.
+      celebrate = _best > 0 && !_bestAnnounced;
       setState(() => _best = _streak);
       _saveBest(_streak);
     }
-    // No confetti between rounds (too distracting) — just the sound + praise.
-    Fx.roundWin();
-    _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
+    if (celebrate) {
+      _bestAnnounced = true;
+      _celebrateNewBest();
+    } else {
+      // No confetti between rounds (too distracting) — just the sound + praise.
+      Fx.roundWin();
+      _flash(MgText(AppLanguage.instance.value).praise[_rng.nextInt(6)]);
+    }
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
       // Turn the whole grid face down first, then flip up the new pattern.
@@ -348,6 +367,20 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     setState(() => _showGameOver = true);
   }
 
+  /// New best streak: confetti, the win sound and a glossy 3D title.
+  void _celebrateNewBest() {
+    _confettiKey.currentState?.fire();
+    Fx.win();
+    _newBestTimer?.cancel();
+    setState(() {
+      _newBestKey++;
+      _showNewBest = true;
+    });
+    _newBestTimer = Timer(NewBestBanner.duration, () {
+      if (mounted) setState(() => _showNewBest = false);
+    });
+  }
+
   void _flash(String text) {
     _flashTimer?.cancel();
     setState(() => _flashText = text);
@@ -361,6 +394,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
     setState(() {
       _showGameOver = false;
       _streak = 0;
+      _bestAnnounced = false;
       _lives = MgData.maxLives;
       _hints = MgData.maxHints;
       _duelScores[0] = 0;
@@ -441,6 +475,10 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
                 ),
                 Positioned.fill(child: MgConfetti(key: _confettiKey, duration: const Duration(milliseconds: 1600))),
                 if (_flashText != null) _buildFlash(),
+                if (_showNewBest)
+                  Positioned.fill(
+                    child: NewBestBanner(key: ValueKey(_newBestKey), title: t.newBestStreak, value: _streak),
+                  ),
                 if (_showGameOver) _buildGameOver(t),
               ],
             ),
