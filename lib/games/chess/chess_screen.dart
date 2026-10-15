@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/save_progress/save_progress_nudge.dart';
+import '../../core/saves/game_saves.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -89,10 +90,56 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   void initState() {
     super.initState();
     ChessPieceArt.load();
+    _resume();
+  }
+
+  // ───────────────────────── Saved game ─────────────────────────
+
+  String get _saveId => widget.vsBot ? 'chess_bot' : 'chess_2p';
+
+  /// Replays an unfinished game's moves, if there is one.
+  void _resume() {
+    final s = GameSaves.instance.peek(_saveId);
+    final raw = s?['moves'];
+    if (raw is! String || raw.isEmpty) return;
+    try {
+      final g = ChessGame();
+      for (final part in raw.split(';')) {
+        final wanted = ChessMove.decode([for (final n in part.split(',')) int.parse(n)]);
+        final legal = g.playableMoves;
+        final i = legal.indexWhere((x) => x == wanted);
+        if (i < 0 || g.over) throw const FormatException('bad save');
+        g.apply(legal[i]);
+      }
+      if (g.over) {
+        GameSaves.instance.clear(_saveId);
+        return;
+      }
+      _game = g;
+      if (_twoPlayer) _viewCtrl.value = g.whiteToMove ? 0 : 1;
+      if (g.inCheck) _checkPulse.repeat(reverse: true);
+      if (widget.vsBot && !g.whiteToMove) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_game.over && !_game.whiteToMove) _botTurn();
+        });
+      }
+    } catch (_) {
+      GameSaves.instance.clear(_saveId);
+    }
+  }
+
+  void _saveProgress({bool now = false}) {
+    if (_game.over || _game.moves.isEmpty) return;
+    GameSaves.instance.put(
+      _saveId,
+      {'moves': [for (final m in _game.moves) m.encode().join(',')].join(';')},
+      now: now,
+    );
   }
 
   @override
   void dispose() {
+    _saveProgress(now: true); // leaving mid-game: continue next time
     _generation++;
     _moveCtrl.dispose();
     _captureCtrl.dispose();
@@ -154,6 +201,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _checkPulse.value = 0;
     });
     _game.apply(m);
+    _saveProgress();
     if (m.isCapture) {
       Fx.chessCapture();
     } else {
@@ -216,6 +264,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   }
 
   void _gameOver() {
+    GameSaves.instance.clear(_saveId);
     final r = _game.result;
     _checkPulse.stop();
     final mate = r == ChessResult.whiteWins || r == ChessResult.blackWins;
@@ -245,6 +294,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   }
 
   void _restart() {
+    GameSaves.instance.clear(_saveId);
     setState(() {
       _generation++;
       _game = ChessGame();

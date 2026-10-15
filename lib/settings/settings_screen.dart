@@ -6,6 +6,7 @@ import '../core/auth/auth_service.dart';
 import '../core/feedback/feedback_settings.dart';
 import '../core/feedback/fx.dart';
 import '../core/localization/app_language.dart';
+import '../core/saves/game_saves.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/widgets/game_header.dart';
@@ -405,7 +406,9 @@ class _MoreButtonState extends State<_MoreButton> {
         if (await showDeleteConfirm(context)) {
           final hi = AppLanguage.instance.isHindi;
           try {
+            final uid = AuthService.instance.user.value?.uid;
             await AuthService.instance.deleteAccount();
+            GameSaves.instance.forgetLocal(uid);
             if (mounted) showAppToast(context, hi ? 'प्रोफ़ाइल डिलीट हो गई' : 'Profile deleted');
           } on AuthException catch (e) {
             if (mounted && !e.cancelled) {

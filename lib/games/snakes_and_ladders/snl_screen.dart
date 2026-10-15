@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/save_progress/save_progress_nudge.dart';
+import '../../core/saves/game_saves.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -90,6 +91,8 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // Leaving mid-match: keep it so the next visit continues from here.
+    if (!_gameOver && !_busy) _saveProgress(now: true);
     _matchTimer?.cancel();
     _countdownTimer?.cancel();
     _diceShuffleTimer?.cancel();
@@ -126,7 +129,52 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _turnsPlayed = 0;
       _paused = false;
     });
+    _resume();
     _runCountdown();
+  }
+
+  // ---- Saved game (signed-in players) ------------------------------------
+
+  String get _saveId => widget.timed ? 'snl_timed' : 'snl_classic';
+
+  /// Continues an unfinished match, if there is one.
+  void _resume() {
+    final s = GameSaves.instance.peek(_saveId);
+    if (s == null) return;
+    try {
+      final y = (s['yellow'] as num).toInt();
+      final r = (s['red'] as num).toInt();
+      final turn = s['turn'] as String;
+      if (y < 0 || y >= 100 || r < 0 || r >= 100) return;
+      if (turn != 'yellow' && turn != 'red') return;
+      final time = (s['time'] as num?)?.toInt() ?? 120;
+      if (widget.timed && time <= 0) return;
+      setState(() {
+        _pos['yellow'] = y;
+        _pos['red'] = r;
+        _turn = turn;
+        _timeLeft = time.clamp(1, 120).toInt();
+        _turnsPlayed = (s['turns'] as num?)?.toInt() ?? 0;
+      });
+    } catch (_) {
+      GameSaves.instance.clear(_saveId);
+    }
+  }
+
+  void _saveProgress({bool now = false}) {
+    if (_gameOver) return;
+    if (_turnsPlayed == 0 && _pos['yellow'] == 0 && _pos['red'] == 0) return;
+    GameSaves.instance.put(
+      _saveId,
+      {
+        'yellow': _pos['yellow'],
+        'red': _pos['red'],
+        'turn': _turn,
+        'time': _timeLeft,
+        'turns': _turnsPlayed,
+      },
+      now: now,
+    );
   }
 
   void _runCountdown() {
@@ -269,12 +317,14 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
       _msgKind = _MsgKind.turn;
     });
     _turnsPlayed++;
+    _saveProgress();
   }
 
   Future<void> _endGame({String? winner}) async {
     if (_gameOver) return;
     _matchTimer?.cancel();
     _blinkCtrl.stop();
+    GameSaves.instance.clear(_saveId);
     String? finalWinner = winner;
     if (finalWinner == null) {
       final yp = _pos['yellow']! * 2;

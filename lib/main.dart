@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'core/auth/auth_service.dart';
 import 'core/feedback/app_audio.dart';
 import 'core/feedback/feedback_settings.dart';
+import 'core/saves/game_saves.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_text_styles.dart';
 import 'splash/splash_screen.dart';
@@ -32,6 +33,7 @@ Future<void> main() async {
   await FeedbackSettings.instance.load();
   // Restore a saved sign-in (local only, fast).
   await AuthService.instance.load();
+  await GameSaves.instance.init();
   runApp(const MilKeKheloApp());
   AppAudio.instance.init();
 }

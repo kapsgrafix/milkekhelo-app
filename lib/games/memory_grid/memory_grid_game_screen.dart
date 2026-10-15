@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/save_progress/save_progress_nudge.dart';
+import '../../core/saves/game_saves.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -94,6 +95,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       _gridSize = lv.size;
       _dotCount = lv.dots;
       _firstEasyRound = widget.level == 'easy';
+      _resume();
     }
     _runCountdown(() {
       if (_isDuel) {
@@ -102,6 +104,34 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         _soloNewRound();
       }
     });
+  }
+
+  // ---- Saved game (solo, signed-in players) --------------------------------
+
+  /// One saved game per level. The streak, lives and hints carry on; the
+  /// next round starts with a fresh pattern.
+  String get _saveId => 'memory_grid_${widget.level}';
+
+  void _resume() {
+    final s = GameSaves.instance.peek(_saveId);
+    if (s == null) return;
+    try {
+      _streak = (s['streak'] as num).toInt();
+      _lives = (s['lives'] as num).toInt().clamp(1, MgData.maxLives);
+      _hints = (s['hints'] as num).toInt().clamp(0, MgData.maxHints);
+      _bestAnnounced = s['ba'] == true;
+      _firstEasyRound = false;
+    } catch (_) {
+      _streak = 0;
+      _lives = MgData.maxLives;
+      _hints = MgData.maxHints;
+    }
+  }
+
+  void _saveProgress({bool now = false}) {
+    if (_isDuel || _phase == _Phase.over || _showGameOver) return;
+    if (_streak == 0 && _lives == MgData.maxLives && _hints == MgData.maxHints) return;
+    GameSaves.instance.put(_saveId, {'streak': _streak, 'lives': _lives, 'hints': _hints, 'ba': _bestAnnounced}, now: now);
   }
 
   /// Separate best streak per level: mg-best-easy / mg-best-hard / …
@@ -117,10 +147,12 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   Future<void> _saveBest(int v) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_bestKey, v);
+    GameSaves.instance.bestChanged(_bestKey, v);
   }
 
   @override
   void dispose() {
+    _saveProgress(now: true);
     _countdownTimer?.cancel();
     _flashTimer?.cancel();
     _newBestTimer?.cancel();
@@ -213,8 +245,9 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       setState(() => _best = _streak);
       _saveBest(_streak);
     }
+    if (celebrate) _bestAnnounced = true;
+    _saveProgress();
     if (celebrate) {
-      _bestAnnounced = true;
       _celebrateNewBest();
     } else {
       // No confetti between rounds (too distracting) — just the sound + praise.
@@ -239,6 +272,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   void _soloLoseLife() {
     setState(() => _lives--);
     if (_lives <= 0) {
+      if (!_isDuel) GameSaves.instance.clear(_saveId);
       setState(() {
         _phase = _Phase.over;
         _hintRevealed.addAll(_target.where((i) => !_found.contains(i)));
@@ -254,6 +288,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
         _statusKind = _lives == 1 ? _StatusKind.lifeLeft : _StatusKind.livesLeft;
         _statusA = _lives;
       });
+      _saveProgress();
       Future.delayed(const Duration(milliseconds: 600), () {
         if (!mounted) return;
         setState(() {
@@ -273,6 +308,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       _hints--;
       _hintRevealed.addAll(_target.where((i) => !_found.contains(i)));
     });
+    _saveProgress();
     Future.delayed(Duration(milliseconds: MgData.duelHintMs), () {
       if (!mounted) return;
       setState(() => _hintRevealed.clear());
@@ -391,6 +427,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   }
 
   void _playAgain() {
+    if (!_isDuel) GameSaves.instance.clear(_saveId);
     setState(() {
       _showGameOver = false;
       _streak = 0;

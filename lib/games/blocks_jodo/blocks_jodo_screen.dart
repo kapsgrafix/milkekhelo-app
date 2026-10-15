@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/save_progress/save_progress_nudge.dart';
+import '../../core/saves/game_saves.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/localization/app_language.dart';
 import '../../core/theme/app_colors.dart';
@@ -112,12 +113,73 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     })
       ..start();
     _loadBest();
-    _newGame();
+    // Signed in with an unfinished game? Carry on from there.
+    if (!_resume()) _newGame();
+  }
+
+  // ---- Saved game (signed-in players) ---------------------------------------
+
+  static const String _saveId = 'blocks_jodo';
+
+  Map<String, dynamic> _snapshot() => {
+        'cells': [for (final c in _board.cells) c?.value ?? 0],
+        'tray': [
+          for (final p in _tray) p == null ? -1 : bjShapes.indexOf(p.shape),
+        ],
+        'trayColors': [for (final p in _tray) p?.color.value ?? 0],
+        'score': _score,
+        'lives': _lives,
+        'combo': _combo,
+        'msc': _movesSinceClear,
+        'ba': _bestAnnounced,
+      };
+
+  /// Saves the board, tray, score and lives (skipped once the game is over
+  /// or before anything has happened).
+  void _saveProgress({bool now = false}) {
+    if (_gameOver) return;
+    if (_score == 0 && _board.isEmpty) return;
+    GameSaves.instance.put(_saveId, _snapshot(), now: now);
+  }
+
+  bool _resume() {
+    final s = GameSaves.instance.peek(_saveId);
+    if (s == null) return false;
+    try {
+      final cells = (s['cells'] as List).map((e) => (e as num).toInt()).toList();
+      final tray = (s['tray'] as List).map((e) => (e as num).toInt()).toList();
+      final trayColors = (s['trayColors'] as List).map((e) => (e as num).toInt()).toList();
+      if (cells.length != _board.cells.length || tray.length != 3 || trayColors.length != 3) return false;
+      for (var i = 0; i < cells.length; i++) {
+        _board.cells[i] = cells[i] == 0 ? null : Color(cells[i]);
+      }
+      _tray = [
+        for (var i = 0; i < 3; i++)
+          tray[i] < 0 || tray[i] >= bjShapes.length ? null : BjPiece(bjShapes[tray[i]], Color(trayColors[i])),
+      ];
+      _score = (s['score'] as num).toInt();
+      _lives = (s['lives'] as num).toInt().clamp(1, BjData.maxLives);
+      _combo = (s['combo'] as num?)?.toInt() ?? 0;
+      _movesSinceClear = (s['msc'] as num?)?.toInt() ?? 0;
+      _bestAnnounced = s['ba'] == true;
+    } catch (_) {
+      _board.reset();
+      return false;
+    }
+    _scene.introStart = _now();
+    if (_tray.every((p) => p == null)) {
+      _after(350, _deal);
+    } else {
+      _after(500, _checkMoves);
+    }
+    return true;
   }
 
   @override
   void dispose() {
-    // Leaving mid-game: the game itself isn't saved, but a new high score is.
+    // Leaving mid-game: signed-in players get the game saved to continue
+    // later; everyone keeps a new high score.
+    _saveProgress(now: true);
     if (_score > _best) {
       _best = _score;
       _saveBest();
@@ -144,6 +206,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(BjData.bestKey, _best);
+      GameSaves.instance.bestChanged(BjData.bestKey, _best);
     } catch (_) {}
   }
 
@@ -174,6 +237,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   // ---- Game flow ------------------------------------------------------------
 
   void _newGame() {
+    GameSaves.instance.clear(_saveId);
     for (final t in _timers) {
       t.cancel();
     }
@@ -211,6 +275,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     setState(() => _tray = List<BjPiece?>.of(_dealer.deal(_board)));
     _refill.forward(from: 0);
     Fx.refill();
+    _saveProgress();
     _after(500, _checkMoves);
   }
 
@@ -255,6 +320,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
   }
 
   void _startGameOver() {
+    GameSaves.instance.clear(_saveId);
     setState(() {
       _gameOver = true;
       _scene.gameOverStart = _now();
@@ -340,6 +406,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       _after(lines.isEmpty ? 250 : 600, _checkMoves);
     }
     setState(() {});
+    _saveProgress();
   }
 
   void _spawnClear(Map<int, Color> cleared, BjLines lines, Offset origin, Color? tint) {
