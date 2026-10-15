@@ -72,14 +72,42 @@ jobs:
             exit 1
           fi
           grep -E "SHA1:|SHA256:" /tmp/key.txt
-          # Android's build tools may look for the key in another folder on
-          # this machine - put a copy everywhere they could look.
-          echo "ANDROID_USER_HOME=${ANDROID_USER_HOME:-} ANDROID_SDK_HOME=${ANDROID_SDK_HOME:-} ANDROID_PREFS_ROOT=${ANDROID_PREFS_ROOT:-}"
-          for D in "${ANDROID_USER_HOME:-}" "${ANDROID_SDK_HOME:+$ANDROID_SDK_HOME/.android}" "${ANDROID_PREFS_ROOT:+$ANDROID_PREFS_ROOT/.android}"; do
-            if [ -n "$D" ] && [ "$D" != "$HOME/.android" ]; then
-              mkdir -p "$D" && cp ~/.android/debug.keystore "$D/debug.keystore" && echo "Also copied to $D"
-            fi
-          done
+          # Point the app's build file straight at this key (the default
+          # location turned out to be ignored, giving a throwaway key).
+          cp ~/.android/debug.keystore android/app/milkekhelo.keystore
+          python3 - <<'PY'
+          import os, re
+          kts = "android/app/build.gradle.kts"
+          groovy = "android/app/build.gradle"
+          if os.path.exists(kts):
+              path, block = kts, (
+                  "    signingConfigs {\n"
+                  "        getByName(\"debug\") {\n"
+                  "            storeFile = file(\"milkekhelo.keystore\")\n"
+                  "            storePassword = \"android\"\n"
+                  "            keyAlias = \"androiddebugkey\"\n"
+                  "            keyPassword = \"android\"\n"
+                  "        }\n"
+                  "    }\n")
+          else:
+              path, block = groovy, (
+                  "    signingConfigs {\n"
+                  "        debug {\n"
+                  "            storeFile file('milkekhelo.keystore')\n"
+                  "            storePassword 'android'\n"
+                  "            keyAlias 'androiddebugkey'\n"
+                  "            keyPassword 'android'\n"
+                  "        }\n"
+                  "    }\n")
+          src = open(path).read()
+          if "milkekhelo.keystore" not in src:
+              src, n = re.subn(r"^android \{\n", "android {\n" + block, src, count=1, flags=re.M)
+              if n != 1:
+                  raise SystemExit("Could not find the android { block in " + path)
+              open(path, "w").write(src)
+          print("Signing set up in", path)
+          PY
+          grep -n "milkekhelo.keystore\|signingConfig" android/app/build.gradle* || true
 
       - run: flutter build apk --release
 
