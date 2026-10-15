@@ -72,8 +72,31 @@ jobs:
             exit 1
           fi
           grep -E "SHA1:|SHA256:" /tmp/key.txt
+          # Android's build tools may look for the key in another folder on
+          # this machine - put a copy everywhere they could look.
+          echo "ANDROID_USER_HOME=${ANDROID_USER_HOME:-} ANDROID_SDK_HOME=${ANDROID_SDK_HOME:-} ANDROID_PREFS_ROOT=${ANDROID_PREFS_ROOT:-}"
+          for D in "${ANDROID_USER_HOME:-}" "${ANDROID_SDK_HOME:+$ANDROID_SDK_HOME/.android}" "${ANDROID_PREFS_ROOT:+$ANDROID_PREFS_ROOT/.android}"; do
+            if [ -n "$D" ] && [ "$D" != "$HOME/.android" ]; then
+              mkdir -p "$D" && cp ~/.android/debug.keystore "$D/debug.keystore" && echo "Also copied to $D"
+            fi
+          done
 
       - run: flutter build apk --release
+
+      # Prove which key actually signed the APK. Google sign-in only works
+      # when this is the permanent key (SHA-1 64:C1:B2:F8:...:59:9E).
+      - name: Check the APK signature
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs "$APK" | tee /tmp/apkcert.txt
+          if [ -n "$KEYSTORE_B64" ] && ! grep -qi "64c1b2f8746a6bd0ad6e22132d270f741c40599e" /tmp/apkcert.txt; then
+            echo "::error::The APK is NOT signed with the permanent key - Google sign-in will fail"
+            exit 1
+          fi
+          echo "APK is signed with the permanent MilkeKhelo key"
 
       - uses: actions/upload-artifact@v4
         with:
