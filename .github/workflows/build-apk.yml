@@ -40,6 +40,14 @@ jobs:
           grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || \
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
 
+      # Google / Facebook sign-in need Android 6.0 (API 23) or newer.
+      - name: Minimum Android version for sign-in
+        run: |
+          F=android/app/build.gradle.kts
+          [ -f "$F" ] || F=android/app/build.gradle
+          sed -i -E 's/minSdk(Version)? *=? *flutter\.minSdkVersion/minSdk = 23/' "$F"
+          grep -n "minSdk" "$F" || true
+
       # Sign every build with the same permanent key (stored in the GitHub
       # secret ANDROID_KEYSTORE_BASE64), so Google / Facebook sign-in
       # recognise the app and new builds install over the old one.
