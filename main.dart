@@ -1,0 +1,91 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'core/auth/auth_service.dart';
+import 'core/feedback/app_audio.dart';
+import 'core/feedback/feedback_settings.dart';
+import 'core/saves/game_saves.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/app_text_styles.dart';
+import 'splash/splash_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Matches the web app locking portrait/no-zoom feel; safe to remove if
+  // you want to support landscape/tablet layouts later.
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  // Draw edge-to-edge: every screen paints its own colour (the bottom ad
+  // strip) behind the Android navigation bar, which stays transparent with
+  // no contrast scrim — so the system footer merges with the app instead of
+  // showing as a separate band.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    statusBarColor: Colors.transparent,
+  ));
+  // Music / sound / vibration preferences must be known before anything
+  // plays; audio itself preloads in the background.
+  await FeedbackSettings.instance.load();
+  // Restore a saved sign-in (local only, fast).
+  await AuthService.instance.load();
+  await GameSaves.instance.init();
+  runApp(const MilKeKheloApp());
+  AppAudio.instance.init();
+}
+
+/// Root widget. Deliberately thin: it just sets up the MaterialApp shell and
+/// hands off to [SplashScreen] (BinnyTechLabs) → [HomeScreen] — all game logic lives inside games/<name>/.
+class MilKeKheloApp extends StatefulWidget {
+  const MilKeKheloApp({super.key});
+
+  @override
+  State<MilKeKheloApp> createState() => _MilKeKheloAppState();
+}
+
+class _MilKeKheloAppState extends State<MilKeKheloApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Pause music when the app leaves the screen; resume when it comes back.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AppAudio.instance.onForeground();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden || state == AppLifecycleState.detached) {
+      AppAudio.instance.onBackground();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Mil ke Khelo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        // Baloo 2 everywhere (bundled in assets/fonts/).
+        fontFamily: AppFonts.family,
+        scaffoldBackgroundColor: AppColors.shell,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.langActiveBg,
+          brightness: Brightness.dark,
+        ),
+      ),
+      home: const SplashScreen(),
+    );
+  }
+}
