@@ -49,11 +49,21 @@ jobs:
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
             echo "::warning::ANDROID_KEYSTORE_BASE64 secret is missing - building with a temporary key (login will not work)"
-          else
-            mkdir -p ~/.android
-            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-            keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep -i fingerprint || true
+            exit 0
           fi
+          mkdir -p ~/.android
+          # Ignore any spaces / line breaks picked up while pasting the secret.
+          CLEAN=$(printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t')
+          echo "Secret length after cleaning: ${#CLEAN} characters (expected 3620)"
+          if ! printf '%s' "$CLEAN" | base64 -d > ~/.android/debug.keystore 2>/dev/null; then
+            echo "::error::The ANDROID_KEYSTORE_BASE64 secret is not valid - paste the whole contents of ANDROID_KEYSTORE_BASE64.txt again"
+            exit 1
+          fi
+          if ! keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey > /tmp/key.txt 2>&1; then
+            echo "::error::The signing key could not be opened - the secret seems incomplete"
+            exit 1
+          fi
+          grep -E "SHA1:|SHA256:" /tmp/key.txt
 
       - run: flutter build apk --release
 
