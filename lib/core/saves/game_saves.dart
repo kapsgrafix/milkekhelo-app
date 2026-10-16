@@ -35,6 +35,10 @@ class GameSaves {
   final Map<String, Map<String, dynamic>> _saves = {};
   final Map<String, Timer> _pending = {};
 
+  /// Games the player chose not to save ("Don't save" on leaving): the
+  /// save made as the screen closes is ignored until the game opens again.
+  final Set<String> _discarded = {};
+
   /// Fires after cloud data arrives (new device / sign-in), so open screens
   /// can refresh best scores if they want to.
   final ValueNotifier<int> changed = ValueNotifier<int>(0);
@@ -78,6 +82,7 @@ class GameSaves {
 
   /// The saved state for [game], or null (guest / nothing saved).
   Map<String, dynamic>? peek(String game) {
+    _discarded.remove(game); // the game is opening again: saving resumes
     if (_uid == null) return null;
     final s = _saves[game];
     return s == null ? null : Map<String, dynamic>.from(s);
@@ -86,7 +91,7 @@ class GameSaves {
   /// Saves [data] for [game]: on the phone right away, to the account a few
   /// seconds later (or immediately with [now], e.g. when leaving the game).
   void put(String game, Map<String, dynamic> data, {bool now = false}) {
-    if (_uid == null) return;
+    if (_uid == null || _discarded.contains(game)) return;
     final copy = Map<String, dynamic>.from(data)..['t'] = DateTime.now().millisecondsSinceEpoch;
     _saves[game] = copy;
     _persistLocal();
@@ -109,6 +114,15 @@ class GameSaves {
     if (_saves.remove(game) == null) return;
     _persistLocal();
     unawaited(_request('DELETE', 'users/$_uid/saves/$game'));
+  }
+
+  /// Is there an unfinished game saved for [game]?
+  bool has(String game) => _uid != null && _saves.containsKey(game);
+
+  /// "Don't save": forget [game] and ignore saves until it opens again.
+  void discard(String game) {
+    clear(game);
+    _discarded.add(game);
   }
 
   void _persistLocal() {

@@ -345,6 +345,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       // Save Progress overlay on leaving a game in progress (not once it's
       // over), after either player has made 4 moves.
       progressed: () => !_game.over && _game.moves.length >= 7,
+      saveId: _saveId,
       background: _bg,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,

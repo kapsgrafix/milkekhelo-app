@@ -22,7 +22,8 @@ class WtJoinScreen extends StatefulWidget {
 
 class _WtJoinScreenState extends State<WtJoinScreen> {
   final _code = TextEditingController();
-  final _name = TextEditingController();
+  // Signed in: the account name is filled in (still editable).
+  final _name = TextEditingController(text: wtAccountName());
   bool _busy = false;
 
   /// Set while waiting for the host to let us into a running game.

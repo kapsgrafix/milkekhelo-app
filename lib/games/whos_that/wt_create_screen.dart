@@ -20,7 +20,8 @@ class WtCreateScreen extends StatefulWidget {
 class _WtCreateScreenState extends State<WtCreateScreen> {
   static const _questionOptions = [5, 10, 15, 20];
 
-  final _name = TextEditingController();
+  // Signed in: the account name is filled in (still editable).
+  final _name = TextEditingController(text: wtAccountName());
   int _qCount = 10;
   int _target = 5;
   bool _busy = false;

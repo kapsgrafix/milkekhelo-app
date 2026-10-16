@@ -371,6 +371,7 @@ class _SnlScreenState extends State<SnlScreen> with TickerProviderStateMixin {
     return SaveProgressGate(
       // Only while the match is in progress — not from the result screen.
       progressed: () => !_gameOver && _turnsPlayed >= 6,
+      saveId: _saveId,
       background: SnlData.screenBg,
       onShow: () => _paused = true,
       onResume: () => _paused = false,

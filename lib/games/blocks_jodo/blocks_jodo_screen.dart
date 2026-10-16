@@ -609,6 +609,7 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
       // Save Progress overlay on leaving a game in progress (not on the
       // result screen), once the score is 150+.
       progressed: () => !_gameOver && !_showGameOver && _score >= 150,
+      saveId: _saveId,
       background: BjData.screenBg,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,

@@ -4,12 +4,23 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/auth/auth_service.dart';
 import '../../core/feedback/fx.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/game_header.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
 import 'wt_translations.dart';
+
+/// The signed-in player's name for the "Your name" field (create / join),
+/// or '' for guests. Fits the 16-character field: the full name if it fits,
+/// else the first name, else cut to 16.
+String wtAccountName() {
+  final full = (AuthService.instance.user.value?.name ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (full.length <= 16) return full;
+  final first = full.split(' ').first;
+  return first.length <= 16 ? first : first.substring(0, 16);
+}
 
 /// Who's That design tokens (Figma "Whosthat *" frames). Fill opacities that
 /// the Figma export drops were measured from the frame renders.

@@ -138,6 +138,91 @@ void showAppToast(BuildContext context, String text, {Duration duration = const 
   ));
 }
 
+/// A short note that drops in at the top of the screen and fades away by
+/// itself, e.g. "Game saved" after signing in from a game. Lives on the
+/// root overlay, so it stays visible while the game screen closes.
+void showTopToast(OverlayState overlay, String text, {Duration duration = const Duration(milliseconds: 2600)}) {
+  late OverlayEntry entry;
+  entry = OverlayEntry(builder: (_) => _TopToast(text: text, duration: duration, onDone: () => entry.remove()));
+  overlay.insert(entry);
+}
+
+class _TopToast extends StatefulWidget {
+  final String text;
+  final Duration duration;
+  final VoidCallback onDone;
+  const _TopToast({required this.text, required this.duration, required this.onDone});
+
+  @override
+  State<_TopToast> createState() => _TopToastState();
+}
+
+class _TopToastState extends State<_TopToast> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    await _c.forward();
+    await Future.delayed(widget.duration);
+    if (!mounted) return;
+    await _c.reverse();
+    if (mounted) widget.onDone();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curve = CurvedAnimation(parent: _c, curve: Curves.easeOutBack, reverseCurve: Curves.easeIn);
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 12,
+      left: 24,
+      right: 24,
+      child: IgnorePointer(
+        child: FadeTransition(
+          opacity: _c,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0, -0.6), end: Offset.zero).animate(curve),
+            child: Center(
+              child: Material(
+                type: MaterialType.transparency,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16234A),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.borderDefault),
+                    boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 20, offset: Offset(0, 8))],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF22C55E)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(widget.text, style: AppFonts.baloo(fontSize: 14, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// For sign-in methods that aren't wired up yet (Facebook, for now).
 void showSignInComingSoon(BuildContext context) {
   Fx.tap();
@@ -148,12 +233,14 @@ void showSignInComingSoon(BuildContext context) {
 /// Runs a sign-in from any button (Settings, Save Progress overlay).
 /// Success → the Welcome dialog (Figma 460:828); failure → a short toast.
 /// [beforeWelcome] runs first on success (e.g. to close the overlay the
-/// button lives in). Returns true when the player is signed in.
+/// button lives in). [welcome]: false skips the Welcome dialog (the
+/// in-game overlay closes the game instead). Returns true when signed in.
 Future<bool> signInFromButton(
   BuildContext context,
   SignInProvider provider, {
   BuildContext? toastContext,
   VoidCallback? beforeWelcome,
+  bool welcome = true,
 }) async {
   if (provider == SignInProvider.facebook) {
     showSignInComingSoon(context);
@@ -166,7 +253,7 @@ Future<bool> signInFromButton(
   try {
     final u = await AuthService.instance.signInWithGoogle();
     beforeWelcome?.call();
-    if (nav.mounted) {
+    if (welcome && nav.mounted) {
       Fx.roundWin();
       showWelcomeDialog(nav.context, u);
     }

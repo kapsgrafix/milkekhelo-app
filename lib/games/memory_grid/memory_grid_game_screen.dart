@@ -480,6 +480,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
       // result screen): streak 3+ on Hard, 10+ on Easy.
       progressed: () =>
           !_isDuel && _phase != _Phase.over && !_showGameOver && _streak >= (widget.level == 'hard' ? 3 : 10),
+      saveId: _isDuel ? null : _saveId,
       background: MgData.screenBg,
       child: ValueListenableBuilder<AppLang>(
       valueListenable: AppLanguage.instance,
