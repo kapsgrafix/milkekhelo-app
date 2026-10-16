@@ -101,9 +101,7 @@ class SettingsScreen extends StatelessWidget {
                                           const SizedBox(height: 10),
                                           SocialLoginButton.google(
                                               onTap: () => signInFromButton(context, SignInProvider.google)),
-                                          const SizedBox(height: 12),
-                                          SocialLoginButton.facebook(
-                                              onTap: () => signInFromButton(context, SignInProvider.facebook)),
+                                          // Facebook sign-in returns once the app is on the Play Store.
                                         ],
                                       ),
                               ),

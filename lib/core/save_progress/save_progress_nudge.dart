@@ -273,7 +273,7 @@ Widget _subtitle(String text) => Text(
 
 /// Signed out: "Don't lose your game!" (Figma 461:2111):
 ///   save badge (280×100) · title + subtitle (6px) ·
-///   [Google | Facebook] + trust line (8px) · dull OR divider ·
+///   [Continue with Google] + trust line (8px) · dull OR divider ·
 ///   Primary "Leave game" button
 class SaveProgressOverlay extends StatelessWidget {
   final Color background;
@@ -283,11 +283,6 @@ class SaveProgressOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     void pop(SaveExitChoice c) => Navigator.of(context).pop(c);
     Future<void> signIn(SignInProvider provider) async {
-      if (provider == SignInProvider.facebook) {
-        showSignInComingSoon(context); // not wired up yet
-        pop(SaveExitChoice.stay);
-        return;
-      }
       // Signed in → the game is saved and closes, with a "Game saved" toast
       // (no Welcome dialog here — leaving was what the player wanted).
       await signInFromButton(context, provider, welcome: false, beforeWelcome: () => pop(SaveExitChoice.signedIn));
@@ -308,13 +303,11 @@ class SaveProgressOverlay extends StatelessWidget {
                 ? 'साइन इन करें और हम आपकी प्रगति सेव कर लेंगे — किसी भी फ़ोन पर वहीं से खेलें जहाँ छोड़ा था।'
                 : "Sign in and we'll save your progress — jump back in right where you left off, on any phone."),
             const SizedBox(height: 16),
-            // Sign In Group: Google + Facebook side by side, trust line.
-            Row(
-              children: [
-                Expanded(child: SocialLoginButton.google(onTap: () => signIn(SignInProvider.google), compact: true)),
-                const SizedBox(width: 10),
-                Expanded(child: SocialLoginButton.facebook(onTap: () => signIn(SignInProvider.facebook), compact: true)),
-              ],
+            // Sign In Group: Google, full width, then the trust line.
+            // (Facebook returns once the app is on the Play Store.)
+            SizedBox(
+              width: double.infinity,
+              child: SocialLoginButton.google(onTap: () => signIn(SignInProvider.google)),
             ),
             const SizedBox(height: 8),
             Text(
