@@ -170,6 +170,9 @@ class _BlocksJodoScreenState extends State<BlocksJodoScreen> with TickerProvider
     if (_tray.every((p) => p == null)) {
       _after(350, _deal);
     } else {
+      // The tray slides in with the refill animation — without it the
+      // restored pieces stay invisible.
+      _refill.forward(from: 0);
       _after(500, _checkMoves);
     }
     return true;
