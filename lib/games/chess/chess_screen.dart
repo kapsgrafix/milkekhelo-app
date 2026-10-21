@@ -14,6 +14,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/chunky_button.dart';
 import '../../core/widgets/game_header.dart';
 import '../../core/widgets/screen_bottom_bar.dart';
+import '../../settings/settings_screen.dart' show SettingsToggle;
 import 'chess_ai.dart';
 import 'chess_engine.dart';
 import 'chess_pieces.dart';
@@ -887,13 +888,22 @@ class _BoardPainter extends CustomPainter {
     if (assist != null) {
       final blink = 0.5 - 0.5 * cos(2 * pi * av); // 0 → 1 → 0 each cycle
       final r = rect(assist.to);
-      canvas.drawRect(r, Paint()..color = AppColors.brandYellow.withAlpha((40 + 120 * blink).round()));
+      // Fill pulses; the border is always fully visible, with a glow.
+      canvas.drawRect(r, Paint()..color = AppColors.brandYellow.withAlpha((60 + 110 * blink).round()));
       canvas.drawRect(
-        r.deflate(cell * 0.04),
+        r.inflate(cell * 0.02),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = cell * 0.07
-          ..color = AppColors.brandYellow.withAlpha((110 + 145 * blink).round()),
+          ..strokeWidth = cell * (0.08 + 0.06 * blink)
+          ..color = AppColors.brandYellow.withAlpha((90 + 120 * blink).round())
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, cell * 0.08),
+      );
+      canvas.drawRect(
+        r.deflate(cell * 0.045),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = cell * 0.09
+          ..color = AppColors.brandYellow,
       );
     }
 
@@ -954,6 +964,7 @@ class _BoardPainter extends CustomPainter {
       final phase = (av * 2) % 1; // two nudges per cycle
       final hop = phase < 0.5 ? sin(pi * phase * 2) : 0.0;
       final r = _scaleRect(from.shift(unit * cell * 0.16 * hop), 1 + 0.08 * hop);
+      _rays(canvas, r.center, cell, av, 0.45 + 0.55 * hop);
       _piece(canvas, r, board[assist.from]);
     }
 
@@ -991,6 +1002,39 @@ class _BoardPainter extends CustomPainter {
           canvas.drawCircle(r.center, cell * 0.16, Paint()..color = _hint);
         }
       }
+    }
+  }
+
+  /// Assist: a soft glow and 10 light rays turning slowly behind
+  /// the suggested piece, brightest at the top of each hop.
+  void _rays(Canvas canvas, Offset c, double cell, double t, double strength) {
+    canvas.drawCircle(
+      c,
+      cell * 0.42,
+      Paint()
+        ..color = const Color(0xFFFFE08A).withAlpha((110 * strength).round())
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, cell * 0.14),
+    );
+    const n = 10;
+    final inner = cell * 0.30, outer = cell * (0.62 + 0.08 * strength);
+    final spin = t * pi / 2;
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFFF3C4).withAlpha((235 * strength).round()),
+          const Color(0xFFFFC53D).withAlpha(0),
+        ],
+      ).createShader(Rect.fromCircle(center: c, radius: outer));
+    for (var i = 0; i < n; i++) {
+      final a = spin + i * 2 * pi / n;
+      final w = pi / n * 0.45; // half-width of a ray, in radians
+      // Narrow at the piece, widening outward.
+      final path = Path()
+        ..moveTo(c.dx + cos(a) * inner, c.dy + sin(a) * inner)
+        ..lineTo(c.dx + cos(a - w) * outer, c.dy + sin(a - w) * outer)
+        ..lineTo(c.dx + cos(a + w) * outer, c.dy + sin(a + w) * outer)
+        ..close();
+      canvas.drawPath(path, paint);
     }
   }
 
@@ -1276,8 +1320,10 @@ class _HowToSheet extends StatelessWidget {
   }
 }
 
-/// Solo "Assist" switch, bottom right of the player bar: a small label and
-/// a 30×18 switch (yellow when on). Compact so the bar keeps its room.
+/// Solo "Assist" switch (Figma "Chess Solo - Game Table" → Assist Toggle,
+/// 467:805), at the right end of the player bar: black 30% fill, 1px
+/// border/default, radius 10, padding 5 / 5 / 10 left, 8px gap,
+/// "Assist" Bold 12/16 text/muted + the Styleguide Toggle at 36 wide.
 class _AssistToggle extends StatelessWidget {
   final String label;
   final bool on;
@@ -1293,44 +1339,29 @@ class _AssistToggle extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: AppFonts.baloo(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: on ? AppColors.brandYellow : AppColors.textMuted,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 5, 5, 5),
+            decoration: BoxDecoration(
+              color: const Color(0x4D000000),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.borderDefault),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: AppFonts.baloo(fontSize: 12, fontWeight: FontWeight.w700, height: 16 / 12, color: AppColors.textMuted),
                 ),
-              ),
-              const SizedBox(width: 6),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 30,
-                height: 18,
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: on ? AppColors.brandYellow : const Color(0x33FFFFFF),
-                  borderRadius: BorderRadius.circular(999),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 36,
+                  height: 36 * 26 / 44,
+                  child: FittedBox(child: ExcludeSemantics(child: SettingsToggle(on: on))),
                 ),
-                child: AnimatedAlign(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: on ? const Color(0xFF0F3D28) : Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
