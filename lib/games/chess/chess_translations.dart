@@ -23,6 +23,7 @@ class ChessText {
   String get white => hi ? 'सफ़ेद' : 'White';
   String get black => hi ? 'काला' : 'Black';
   String get yourTurn => hi ? 'आपकी बारी' : 'Your turn';
+  String get assist => hi ? 'मदद' : 'Assist';
   String get thinking => hi ? 'सोच रहा है' : 'Thinking';
   String get turn => hi ? 'बारी' : 'Turn';
 

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/save_progress/save_progress_nudge.dart';
 import '../../core/saves/game_saves.dart';
@@ -86,11 +87,83 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   final _confetti = GlobalKey<_ConfettiState>();
   final _rng = Random();
 
+  // Assist (Solo only): 2 s into the player's turn, the suggested piece
+  // nudges toward its square and that square blinks — until they act.
+  static const String _assistKey = 'chess_assist';
+  bool _assist = false;
+  ChessMove? _assistMove;
+  int _assistGen = 0;
+  late final AnimationController _assistCtrl =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+
   @override
   void initState() {
     super.initState();
     ChessPieceArt.load();
     _resume();
+    if (widget.vsBot) _loadAssist();
+  }
+
+  // ───────────────────────── Assist ─────────────────────────
+
+  Future<void> _loadAssist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final on = prefs.getBool(_assistKey) ?? false;
+      if (!mounted || !on) return;
+      setState(() => _assist = true);
+      _scheduleAssist();
+    } catch (_) {}
+  }
+
+  void _toggleAssist() {
+    Fx.tap();
+    setState(() => _assist = !_assist);
+    SharedPreferences.getInstance().then((p) => p.setBool(_assistKey, _assist)).catchError((_) => false);
+    if (_assist) {
+      _scheduleAssist();
+    } else {
+      _clearAssist();
+    }
+  }
+
+  /// Hides the hint (the player acted, or the turn changed).
+  void _clearAssist() {
+    _assistGen++;
+    _assistCtrl
+      ..stop()
+      ..value = 0;
+    if (_assistMove != null && mounted) setState(() => _assistMove = null);
+  }
+
+  bool get _assistWanted =>
+      widget.vsBot && _assist && !_game.over && _game.whiteToMove && !_busy && _selected == null && !_showEnd;
+
+  /// Works out a good move for the player (same engine as the bot) and
+  /// shows it 2 seconds into their turn.
+  Future<void> _scheduleAssist() async {
+    _clearAssist();
+    if (!_assistWanted) return;
+    final gen = _assistGen;
+    final encoded = _game.position.encode();
+    List<int> pick;
+    try {
+      final r = await Future.wait<Object>([
+        compute(chessBotMove, encoded),
+        Future<Object>.delayed(const Duration(seconds: 2), () => 0),
+      ]);
+      pick = r[0] as List<int>;
+    } catch (_) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted || gen != _assistGen) return;
+      pick = chessBotMove(encoded);
+    }
+    if (!mounted || gen != _assistGen || !_assistWanted) return;
+    final wanted = ChessMove.decode(pick);
+    final i = _game.playableMoves.indexWhere((m) => m == wanted);
+    if (i < 0) return;
+    setState(() => _assistMove = _game.playableMoves[i]);
+    _assistCtrl.repeat();
   }
 
   // ───────────────────────── Saved game ─────────────────────────
@@ -141,6 +214,8 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   void dispose() {
     _saveProgress(now: true); // leaving mid-game: continue next time
     _generation++;
+    _assistGen++;
+    _assistCtrl.dispose();
     _moveCtrl.dispose();
     _captureCtrl.dispose();
     _checkPulse.dispose();
@@ -158,6 +233,13 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   void _onTapSquare(int sq) {
     if (_busy) return;
     if (widget.vsBot && !_game.whiteToMove) return;
+    _clearAssist(); // the player is acting: hide the hint
+    _tapSquare(sq);
+    // Back to nothing selected (and still their turn): hint again in 2 s.
+    if (_selected == null) _scheduleAssist();
+  }
+
+  void _tapSquare(int sq) {
     final piece = _game.position.board[sq];
     final own = piece != 0 && (piece > 0) == _game.whiteToMove;
 
@@ -227,7 +309,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _bannerFlip = _twoPlayer && !_game.whiteToMove;
       _bannerCtrl.forward(from: 0);
     }
-    if (widget.vsBot && !_game.whiteToMove) _botTurn();
+    if (widget.vsBot && !_game.whiteToMove) {
+      _botTurn();
+    } else {
+      _scheduleAssist(); // the player's turn again
+    }
   }
 
   void _burst(ChessMove m) {
@@ -313,6 +399,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       _endCtrl.value = 0;
       _viewCtrl.value = 0;
     });
+    _scheduleAssist();
   }
 
   // ───────────────────────── Derived ─────────────────────────
@@ -490,6 +577,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               ],
             ),
           ),
+          // Solo: the Assist switch, bottom right.
+          if (white && widget.vsBot) ...[
+            const SizedBox(width: 8),
+            _AssistToggle(label: t.assist, on: _assist, onTap: _toggleAssist),
+          ],
         ],
       ),
     );
@@ -578,7 +670,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               _onTapSquare(row * 8 + col);
             },
             child: CustomPaint(
-              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl, _viewCtrl, ChessPieceArt.ready])),
+              painter: _BoardPainter(this, Listenable.merge([_moveCtrl, _captureCtrl, _checkPulse, _endCtrl, _viewCtrl, _assistCtrl, ChessPieceArt.ready])),
             ),
           ),
         ),
@@ -789,6 +881,22 @@ class _BoardPainter extends CustomPainter {
     }
     if (s._selected != null) canvas.drawRect(rect(s._selected!), Paint()..color = _selectedSq);
 
+    // Assist: the suggested square blinks (yellow glow + ring).
+    final assist = anim == null ? s._assistMove : null;
+    final av = s._assistCtrl.value;
+    if (assist != null) {
+      final blink = 0.5 - 0.5 * cos(2 * pi * av); // 0 → 1 → 0 each cycle
+      final r = rect(assist.to);
+      canvas.drawRect(r, Paint()..color = AppColors.brandYellow.withAlpha((40 + 120 * blink).round()));
+      canvas.drawRect(
+        r.deflate(cell * 0.04),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = cell * 0.07
+          ..color = AppColors.brandYellow.withAlpha((110 + 145 * blink).round()),
+      );
+    }
+
     // 2. King in check: pulsing red square with a glow.
     final mated = game.result == ChessResult.whiteWins || game.result == ChessResult.blackWins;
     if ((game.inCheck && anim == null) || mated) {
@@ -826,6 +934,7 @@ class _BoardPainter extends CustomPainter {
         hidden.add(rookTo);
       }
     }
+    if (assist != null) hidden.add(assist.from); // drawn nudging, below
     final loserKing = mated ? game.position.kingSquare(game.whiteToMove) : -1;
     for (var sq = 0; sq < 64; sq++) {
       final v = board[sq];
@@ -836,6 +945,18 @@ class _BoardPainter extends CustomPainter {
       }
       _piece(canvas, rect(sq), v);
     }
+    // Assist: the suggested piece hops a little toward its square, then
+    // settles — twice per cycle, like a tap on the shoulder.
+    if (assist != null) {
+      final from = rect(assist.from), to = rect(assist.to);
+      final dir = to.center - from.center;
+      final unit = dir.distance == 0 ? Offset.zero : dir / dir.distance;
+      final phase = (av * 2) % 1; // two nudges per cycle
+      final hop = phase < 0.5 ? sin(pi * phase * 2) : 0.0;
+      final r = _scaleRect(from.shift(unit * cell * 0.16 * hop), 1 + 0.08 * hop);
+      _piece(canvas, r, board[assist.from]);
+    }
+
     // The captured piece waits on its square until the attacker lands.
     if (anim != null && anim.isCapture) _piece(canvas, rect(anim.captureSquare), anim.captured);
 
@@ -1145,6 +1266,68 @@ class _HowToSheet extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(t.goalText, style: AppFonts.baloo(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Solo "Assist" switch, bottom right of the player bar: a small label and
+/// a 30×18 switch (yellow when on). Compact so the bar keeps its room.
+class _AssistToggle extends StatelessWidget {
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+  const _AssistToggle({required this.label, required this.on, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      toggled: on,
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: AppFonts.baloo(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: on ? AppColors.brandYellow : AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(width: 6),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 30,
+                height: 18,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: on ? AppColors.brandYellow : const Color(0x33FFFFFF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: on ? const Color(0xFF0F3D28) : Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
