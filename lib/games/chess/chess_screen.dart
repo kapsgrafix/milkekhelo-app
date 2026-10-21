@@ -905,6 +905,8 @@ class _BoardPainter extends CustomPainter {
           ..strokeWidth = cell * 0.09
           ..color = AppColors.brandYellow,
       );
+      // Light rays turning on top of the square, brightest as it blinks.
+      _rays(canvas, r.center, cell, av, 0.45 + 0.55 * blink);
     }
 
     // 2. King in check: pulsing red square with a glow.
@@ -964,7 +966,6 @@ class _BoardPainter extends CustomPainter {
       final phase = (av * 2) % 1; // two nudges per cycle
       final hop = phase < 0.5 ? sin(pi * phase * 2) : 0.0;
       final r = _scaleRect(from.shift(unit * cell * 0.16 * hop), 1 + 0.08 * hop);
-      _rays(canvas, r.center, cell, av, 0.45 + 0.55 * hop);
       _piece(canvas, r, board[assist.from]);
     }
 
@@ -1005,8 +1006,8 @@ class _BoardPainter extends CustomPainter {
     }
   }
 
-  /// Assist: a soft glow and 10 light rays turning slowly behind
-  /// the suggested piece, brightest at the top of each hop.
+  /// Assist: a soft glow and 10 light rays turning slowly on the
+  /// suggested square, brightest as it blinks.
   void _rays(Canvas canvas, Offset c, double cell, double t, double strength) {
     canvas.drawCircle(
       c,
