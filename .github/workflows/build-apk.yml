@@ -40,12 +40,34 @@ jobs:
           grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || \
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
 
-      # Google / Facebook sign-in need Android 6.0 (API 23) or newer.
-      - name: Minimum Android version for sign-in
+      # Google banner ads (AdMob): the app's AdMob ID goes in the manifest.
+      # Google's TEST ID until MilkeKhelo's own is pasted below — the value
+      # must always be there, or the app closes on start.
+      - name: AdMob app ID
+        env:
+          ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
+        run: |
+          python3 - <<'PY'
+          import os
+          path = "android/app/src/main/AndroidManifest.xml"
+          src = open(path).read()
+          if "com.google.android.gms.ads.APPLICATION_ID" not in src:
+              start = src.index("<application")
+              end = src.index(">", start) + 1
+              tag = ('\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"'
+                     ' android:value="' + os.environ["ADMOB_APP_ID"] + '"/>')
+              src = src[:end] + tag + src[end:]
+              open(path, "w").write(src)
+          PY
+          grep -n "APPLICATION_ID" android/app/src/main/AndroidManifest.xml
+
+      # Google sign-in needs Android 6.0+, Google ads need Android 7.0
+      # (API 24) or newer.
+      - name: Minimum Android version
         run: |
           F=android/app/build.gradle.kts
           [ -f "$F" ] || F=android/app/build.gradle
-          sed -i -E 's/minSdk(Version)? *=? *flutter\.minSdkVersion/minSdk = 23/' "$F"
+          sed -i -E 's/minSdk(Version)? *=? *flutter\.minSdkVersion/minSdk = 24/' "$F"
           grep -n "minSdk" "$F" || true
 
       # Sign every build with the same permanent key (stored in the GitHub
