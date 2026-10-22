@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/ads/ads.dart';
 import 'core/auth/auth_service.dart';
 import 'core/feedback/app_audio.dart';
 import 'core/feedback/feedback_settings.dart';
@@ -36,6 +37,9 @@ Future<void> main() async {
   await GameSaves.instance.init();
   runApp(const MilKeKheloApp());
   AppAudio.instance.init();
+  // Banner ads: consent (EU / UK only) then the Mobile Ads SDK — in the
+  // background, so the app opens straight away.
+  Ads.init();
 }
 
 /// Root widget. Deliberately thin: it just sets up the MaterialApp shell and
