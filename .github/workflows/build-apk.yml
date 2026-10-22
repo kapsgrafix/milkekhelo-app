@@ -40,12 +40,11 @@ jobs:
           grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || \
             sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
 
-      # Google banner ads (AdMob): the app's AdMob ID goes in the manifest.
-      # Google's TEST ID until MilkeKhelo's own is pasted below — the value
-      # must always be there, or the app closes on start.
+      # Google banner ads (AdMob): MilkeKhelo's AdMob app ID goes in the
+      # manifest. It must always be there, or the app closes on start.
       - name: AdMob app ID
         env:
-          ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
+          ADMOB_APP_ID: ca-app-pub-9391078867590803~1476168468
         run: |
           python3 - <<'PY'
           import os
@@ -60,6 +59,30 @@ jobs:
               open(path, "w").write(src)
           PY
           grep -n "APPLICATION_ID" android/app/src/main/AndroidManifest.xml
+
+      # Crash catcher: shows a crash's details on screen (instead of "keeps
+      # stopping") so it can be screenshotted. Java files live in tool/android.
+      - name: Add the crash catcher
+        run: |
+          D=android/app/src/main/java/com/kapsgrafix/milkekhelo
+          mkdir -p "$D"
+          cp tool/android/java/*.java "$D/"
+          python3 - <<'PY'
+          path = "android/app/src/main/AndroidManifest.xml"
+          src = open(path).read()
+          if "CrashCatcher" not in src:
+              start = src.index("<application")
+              end = src.index(">", start) + 1
+              extra = ('\n        <provider android:name=".CrashCatcher"'
+                       ' android:authorities="com.kapsgrafix.milkekhelo.crashcatcher"'
+                       ' android:exported="false" android:initOrder="100000"/>'
+                       '\n        <activity android:name=".CrashActivity" android:process=":crash"'
+                       ' android:exported="false"'
+                       ' android:theme="@android:style/Theme.Material.Light.NoActionBar"/>')
+              src = src[:end] + extra + src[end:]
+              open(path, "w").write(src)
+          PY
+          grep -n "Crash" android/app/src/main/AndroidManifest.xml
 
       # Google sign-in needs Android 6.0+, Google ads need Android 7.0
       # (API 24) or newer.
