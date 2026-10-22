@@ -31,7 +31,9 @@ class Ads {
   /// Firebase user IDs (Firebase → Authentication → Users → User UID) of
   /// the team's own accounts: signed in with one of these, the app shows
   /// test ads only, so testing never counts as invalid clicks.
-  static const Set<String> testAccounts = {};
+  static const Set<String> testAccounts = {
+    'SZ7GM9AgsNRTryWmh3OL2MxIUlt2', // Kapil
+  };
 
   /// The banner unit to request right now.
   static String get bannerUnitId =>
