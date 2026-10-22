@@ -154,6 +154,36 @@ jobs:
           PY
           grep -n "milkekhelo.keystore\|signingConfig" android/app/build.gradle* || true
 
+      # Release builds shrink the code (R8). Google ads use WorkManager,
+      # whose database class is found by name at start-up — without these
+      # keep rules R8 removes it and the app crashes on launch
+      # ("Failed to create an instance of androidx.work.impl.WorkDatabase").
+      - name: Keep rules for code shrinking
+        run: |
+          cat >> android/app/proguard-rules.pro <<'PRO'
+          -keep class * extends androidx.room.RoomDatabase { *; }
+          -keep class androidx.work.** { *; }
+          -keep class androidx.room.** { *; }
+          -keep class androidx.startup.** { *; }
+          -dontwarn androidx.work.**
+          PRO
+          python3 - <<'PY'
+          import os, re
+          kts = "android/app/build.gradle.kts"
+          groovy = "android/app/build.gradle"
+          path = kts if os.path.exists(kts) else groovy
+          line = '            proguardFiles("proguard-rules.pro")\n' if path == kts else "            proguardFiles 'proguard-rules.pro'\n"
+          src = open(path).read()
+          if "proguard-rules.pro" not in src:
+              src, n = re.subn(r"(\n\s*release\s*\{\n)", lambda m: m.group(1) + line, src, count=1)
+              if n != 1:
+                  raise SystemExit("Could not find the release { block in " + path)
+              open(path, "w").write(src)
+          print("Keep rules set up in", path)
+          PY
+          cat android/app/proguard-rules.pro
+          grep -n -A3 "release" android/app/build.gradle* | head -20
+
       - run: flutter build apk --release
 
       # Prove which key actually signed the APK. Google sign-in only works
