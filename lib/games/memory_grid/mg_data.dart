@@ -40,7 +40,7 @@ class MgData {
   // ---- Figma (Memory Grid L1 / L2 / L3) tokens -------------------------
   static const Color titleAccent = Color(0xFFC3B0F5); // module/purple-light
   static const Color tileEmpty = Color(0x59000000); // background/slot-empty
-  static const Color tileLit = Color(0xFF8B6CF0); // purple (My First theme)
+  static const Color tileLit = Color(0xFF33C481); // module/green (the original, more visible on purple)
   static const Color tileWrong = Color(0xFFFF7A45); // module/coral
   static const Color tileNumber = Color(0xFF1B2340); // text/on-light
 

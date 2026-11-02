@@ -695,7 +695,7 @@ class _MemoryGridGameScreenState extends State<MemoryGridGameScreen> {
   }
 
   /// Figma tile: radius 12. Empty = slot-empty (35% black); lit / found =
-  /// purple; wrong tap = module/coral. Found tiles show their order
+  /// module/green; wrong tap = module/coral. Found tiles show their order
   /// (stat/number, text/on-light), scaled to the tile size. Tiles turn face
   /// up / face down with a card flip ([_FlipTile]).
   Widget _buildTile(int i, double size) {

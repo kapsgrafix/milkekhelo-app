@@ -4,12 +4,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/auth/auth_service.dart';
 import '../core/feedback/fx.dart';
 import '../core/localization/app_language.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/widgets/chunky_button.dart';
-import '../core/widgets/game_header.dart';
 import '../core/widgets/heartbeat.dart';
 import '../core/widgets/language_toggle.dart';
 import '../core/widgets/pressable_card.dart';
@@ -32,10 +32,11 @@ import '../settings/settings_screen.dart';
 ///   0    Header (Type=Logo): settings gear · centred 136px wordmark · language   56
 ///   68   Featured banner 320×264, radius 24: block-art background,
 ///        160px Block Jodo art at (80, 24), 240×48 "Play Now" at (40, 192)
-///   356  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
+///   356  "Classic Games" — Snakes & Ladders · Memory Grid · Chess
 ///        (square cards filling the row, gap 10, radius 16, 6px ledge)
-///   513  "Classic Games" — Snakes & Ladders · Memory Grid · Chess
+///   513  "MilkeKhelo Party Games" — My First · Who's That? · Thank You
 ///        (square cards filling the row, gap 10, radius 16, 6px ledge)
+///        (Kapil, Nov 2: Classic Games moved above Party Games.)
 ///        32px bottom padding
 /// The content is taller than most screens, so it scrolls.
 ///
@@ -150,26 +151,6 @@ class _HomeBody extends StatelessWidget {
             children: [
               _FeaturedBanner(isHi: isHi),
               const SizedBox(height: 24),
-              _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games'),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, c) {
-                  final side = (c.maxWidth - 2 * 10) / 3;
-                  return Row(
-                    children: [
-                      small(side, 0, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
-                      const SizedBox(width: 10),
-                      small(side, 1, AppColors.snakesAndLadders /* module/pink */, 'whos_that',
-                          isHi ? 'पहचान कौन' : "Who's That?", () => const WhosThatScreen()),
-                      const SizedBox(width: 10),
-                      small(side, 2, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
-                    ],
-                  );
-                },
-              ),
-              // Figma: 24px from the card faces to the next section; the
-              // 6px ledge already sits inside the row.
-              const SizedBox(height: 24 - _GameModuleCard.ledge),
               _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games'),
               const SizedBox(height: 8),
               // Three classic games — same full-width square cards as the
@@ -179,13 +160,33 @@ class _HomeBody extends StatelessWidget {
                   final side = (c.maxWidth - 2 * 10) / 3;
                   return Row(
                     children: [
-                      small(side, 3, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
+                      small(side, 0, AppColors.snakesAndLadders, 'snl', isHi ? 'साँप-सीढ़ी' : 'Snakes & Ladders',
                           () => const SnlHomeScreen()),
                       const SizedBox(width: 10),
-                      small(side, 4, AppColors.first, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
+                      small(side, 1, AppColors.first, 'memory_grid', isHi ? 'मेमोरी जाल' : 'Memory Grid',
                           () => const MemoryGridHomeScreen()),
                       const SizedBox(width: 10),
-                      small(side, 5, AppColors.memoryGrid, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
+                      small(side, 2, AppColors.memoryGrid, 'chess', isHi ? 'शतरंज' : 'Chess', () => const ChessHomeScreen()),
+                    ],
+                  );
+                },
+              ),
+              // Figma: 24px from the card faces to the next section; the
+              // 6px ledge already sits inside the row.
+              const SizedBox(height: 24 - _GameModuleCard.ledge),
+              _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games'),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (context, c) {
+                  final side = (c.maxWidth - 2 * 10) / 3;
+                  return Row(
+                    children: [
+                      small(side, 3, AppColors.first, 'my_first', isHi ? 'मेरा पहला' : 'My First', () => const FirstScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 4, AppColors.snakesAndLadders /* module/pink */, 'whos_that',
+                          isHi ? 'पहचान कौन' : "Who's That?", () => const WhosThatScreen()),
+                      const SizedBox(width: 10),
+                      small(side, 5, AppColors.thankYou, 'thank_you', isHi ? 'धन्यवाद' : 'Thank You', () => const ThankYouScreen()),
                     ],
                   );
                 },
@@ -290,7 +291,7 @@ class _HomeHeader extends StatelessWidget {
             width: 72,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _SettingsButton(onTap: () => _push(context, const SettingsScreen())),
+              child: _ProfileButton(onTap: () => _push(context, const SettingsScreen())),
             ),
           ),
           Expanded(
@@ -315,18 +316,81 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-/// Figma "Icon/Settings": the shared 32×32 header button with a 16px
-/// filled gear (8 teeth, centre hole) in text/primary.
-class _SettingsButton extends StatelessWidget {
+/// Header profile button (opens Settings): a 32px round picture — the
+/// default avatar for guests, the Google photo when signed in — with a
+/// small gear badge at its bottom-right so it still reads as Settings.
+class _ProfileButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _SettingsButton({required this.onTap});
+  const _ProfileButton({required this.onTap});
+
+  static const double _size = 32;
+  static const double _badge = 15;
 
   @override
   Widget build(BuildContext context) {
-    return HeaderIconButton(
-      semanticLabel: 'Settings',
-      onTap: onTap,
-      child: const SizedBox(width: 16, height: 16, child: CustomPaint(painter: GearPainter(AppColors.textPrimary))),
+    const fallback = Image(
+      image: AssetImage('assets/home/avatar_default.webp'),
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.medium,
+    );
+    return ValueListenableBuilder<AppUser?>(
+      valueListenable: AuthService.instance.user,
+      builder: (context, user, _) {
+        final photo = user?.photoUrl ?? '';
+        return Semantics(
+          button: true,
+          label: AppLanguage.instance.isHindi ? 'प्रोफ़ाइल और सेटिंग्स' : 'Profile and settings',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              Fx.tap();
+              onTap();
+            },
+            child: SizedBox(
+              width: _size + 4,
+              height: _size + 4,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: _size,
+                    height: _size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.borderDefault, width: 1.5),
+                    ),
+                    child: ClipOval(
+                      child: photo.isEmpty
+                          ? fallback
+                          : Image.network(photo, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
+                    ),
+                  ),
+                  // Gear badge, bottom-right.
+                  Positioned(
+                    left: _size - _badge + 4,
+                    top: _size - _badge + 4,
+                    child: Container(
+                      width: _badge,
+                      height: _badge,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF16234A),
+                        border: Border.all(color: _homeBgEdge, width: 1.5),
+                      ),
+                      child: const SizedBox(
+                        width: 9,
+                        height: 9,
+                        child: CustomPaint(painter: GearPainter(AppColors.textPrimary)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

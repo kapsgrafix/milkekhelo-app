@@ -214,12 +214,51 @@ class AuthService {
       }
       return _idToken;
     } on AuthException catch (e) {
-      // The account was removed / disabled: sign out locally.
-      if (e.code.contains('TOKEN_EXPIRED') || e.code.contains('USER_NOT_FOUND') || e.code.contains('USER_DISABLED') ||
-          e.code.contains('INVALID_REFRESH_TOKEN')) {
-        await signOut();
+      // Players stay signed in until they log out themselves — a failed
+      // refresh never signs them out. If the saved session itself has gone
+      // stale, quietly renew it with Google (no picker); otherwise just
+      // skip cloud sync this time (e.g. offline) and try again later.
+      debugPrint('Token refresh failed: $e');
+      if (e.code.contains('TOKEN_EXPIRED') || e.code.contains('INVALID_REFRESH_TOKEN')) {
+        if (await _renewSilently()) return _idToken;
       }
       return null;
+    }
+  }
+
+  Future<bool>? _renewing;
+
+  /// Renews the Firebase session from the Google account already on the
+  /// phone, without showing the account picker. False if that isn't possible.
+  Future<bool> _renewSilently() {
+    final running = _renewing;
+    if (running != null) return running;
+    final f = _renew();
+    _renewing = f;
+    f.whenComplete(() {
+      if (identical(_renewing, f)) _renewing = null;
+    });
+    return f;
+  }
+
+  Future<bool> _renew() async {
+    try {
+      if (user.value?.provider != SignInProvider.google) return false;
+      await _ensureGoogle();
+      final account = await GoogleSignIn.instance.attemptLightweightAuthentication();
+      final token = account?.authentication.idToken;
+      if (account == null || token == null || token.isEmpty) return false;
+      await _signInWithIdp(
+        postBody: 'id_token=${Uri.encodeQueryComponent(token)}&providerId=google.com',
+        provider: SignInProvider.google,
+        fallbackName: account.displayName,
+        fallbackEmail: account.email,
+        fallbackPhoto: account.photoUrl,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Silent renew failed: $e');
+      return false;
     }
   }
 

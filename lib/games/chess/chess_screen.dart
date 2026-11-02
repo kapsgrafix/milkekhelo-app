@@ -91,7 +91,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   // Assist (Solo only): 2 s into the player's turn, the suggested piece
   // nudges toward its square and that square blinks — until they act.
   static const String _assistKey = 'chess_assist';
-  bool _assist = false;
+  bool _assist = true; // on by default; the player's choice is remembered
   ChessMove? _assistMove;
   int _assistGen = 0;
   late final AnimationController _assistCtrl =
@@ -110,11 +110,13 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   Future<void> _loadAssist() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final on = prefs.getBool(_assistKey) ?? false;
-      if (!mounted || !on) return;
-      setState(() => _assist = true);
-      _scheduleAssist();
-    } catch (_) {}
+      final on = prefs.getBool(_assistKey) ?? true;
+      if (!mounted) return;
+      setState(() => _assist = on);
+      if (on) _scheduleAssist();
+    } catch (_) {
+      if (mounted && _assist) _scheduleAssist();
+    }
   }
 
   void _toggleAssist() {
