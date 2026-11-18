@@ -10,6 +10,8 @@ on:
 # up by itself with every build (the GitHub run number).
 env:
   APP_VERSION: "1.0"
+  # The app's package name (its permanent ID on Google Play).
+  APP_ID: "com.milkekhelo.app"
 
 jobs:
   build:
@@ -44,9 +46,9 @@ jobs:
         run: |
           F=android/app/build.gradle.kts
           [ -f "$F" ] || F=android/app/build.gradle
-          sed -i -E 's/applicationId( *=)? *"[^"]*"/applicationId\1 "com.milkekhelo.app"/' "$F"
+          sed -i -E "s/applicationId( *=)? *\"[^\"]*\"/applicationId\\1 \"$APP_ID\"/" "$F"
           grep -n 'applicationId' "$F"
-          grep -q '"com.milkekhelo.app"' "$F" || { echo "::error::applicationId was not set"; exit 1; }
+          grep -q "\"$APP_ID\"" "$F" || { echo "::error::applicationId was not set"; exit 1; }
 
       - name: Generate app icon
         run: dart run flutter_launcher_icons
