@@ -78,7 +78,7 @@ class HomeScreen extends StatelessWidget {
               final isHi = lang == AppLang.hi;
               return Column(
                 children: [
-                  const SafeArea(bottom: false, child: _HomeHeader()),
+                  const _BuildIn(order: 0, fromAbove: true, child: SafeArea(bottom: false, child: _HomeHeader())),
                   Expanded(child: _HomeBody(isHi: isHi)),
                   const ScreenBottomBar(color: AppColors.adStripHome),
                 ],
@@ -124,16 +124,20 @@ class _HomeBody extends StatelessWidget {
     Widget small(double side, int index, GameCardPalette palette, String game, String label, Widget Function() screen) {
       return SizedBox(
         width: side,
-        child: _GameModuleCard(
-          index: index,
-          palette: palette,
-          image: 'assets/home/card_${game}_$lang.webp',
-          faceHeight: side,
-          radius: 16,
-          artSize: side * 0.84,
-          artTop: side * 0.08,
-          label: label,
-          onTap: () => _push(context, screen()),
+        // Build-in order: Classic cards 3–5, Party cards 7–9 (titles 2, 6).
+        child: _BuildIn(
+          order: index < 3 ? index + 3 : index + 4,
+          child: _GameModuleCard(
+            index: index,
+            palette: palette,
+            image: 'assets/home/card_${game}_$lang.webp',
+            faceHeight: side,
+            radius: 16,
+            artSize: side * 0.84,
+            artTop: side * 0.08,
+            label: label,
+            onTap: () => _push(context, screen()),
+          ),
         ),
       );
     }
@@ -149,9 +153,9 @@ class _HomeBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FeaturedBanner(isHi: isHi),
+              _BuildIn(order: 1, child: _FeaturedBanner(isHi: isHi)),
               const SizedBox(height: 24),
-              _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games'),
+              _BuildIn(order: 2, child: _SectionTitle(isHi ? 'क्लासिक खेल' : 'Classic Games')),
               const SizedBox(height: 8),
               // Three classic games — same full-width square cards as the
               // Party row; Memory Grid uses the My First purple, Chess the green.
@@ -174,7 +178,7 @@ class _HomeBody extends StatelessWidget {
               // Figma: 24px from the card faces to the next section; the
               // 6px ledge already sits inside the row.
               const SizedBox(height: 24 - _GameModuleCard.ledge),
-              _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games'),
+              _BuildIn(order: 6, child: _SectionTitle(isHi ? 'मिलकेखेलो पार्टी गेम्स' : 'MilkeKhelo Party Games')),
               const SizedBox(height: 8),
               LayoutBuilder(
                 builder: (context, c) {
@@ -629,4 +633,73 @@ class _SlideGradient extends GradientTransform {
   @override
   Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
       Matrix4.translationValues(bounds.width * fraction, bounds.height * fraction, 0);
+}
+
+/// Home "build-in": the first time home appears, each element floats in —
+/// fading up from 14px below (the header drops 10px from above), a touch
+/// small — and settles into place with a tiny overshoot, one after another
+/// (70ms apart, by [order]) so the page assembles in front of the player.
+/// Plays once per launch; skipped when the phone asks for reduced motion.
+class _BuildIn extends StatefulWidget {
+  final int order;
+  final bool fromAbove;
+  final Widget child;
+  const _BuildIn({required this.order, required this.child, this.fromAbove = false});
+
+  @override
+  State<_BuildIn> createState() => _BuildInState();
+}
+
+class _BuildInState extends State<_BuildIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 720));
+  Timer? _start;
+
+  @override
+  void initState() {
+    super.initState();
+    // Wait for the splash cross-fade, then stagger.
+    _start = Timer(Duration(milliseconds: 180 + 70 * widget.order), () {
+      if (mounted) _c.forward();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _start?.cancel();
+      _c.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _start?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      child: widget.child,
+      builder: (context, child) {
+        final t = _c.value;
+        if (t >= 1) return child!;
+        final fade = Curves.easeOut.transform((t / 0.45).clamp(0.0, 1.0));
+        final land = Curves.easeOutBack.transform(t); // slight overshoot, then settles
+        final dy = (widget.fromAbove ? -10.0 : 14.0) * (1 - land);
+        final scale = 0.97 + 0.03 * Curves.easeOutCubic.transform(t);
+        return Opacity(
+          opacity: fade,
+          child: Transform.translate(
+            offset: Offset(0, dy),
+            child: Transform.scale(scale: scale, child: child),
+          ),
+        );
+      },
+    );
+  }
 }
