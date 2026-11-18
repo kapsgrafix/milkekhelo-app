@@ -1,9 +1,15 @@
-name: Build APK
+name: Build APK and App Bundle
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+# The version players see on Google Play ("version name"). Change it for
+# each new release (1.0 → 1.1 → 2.0 …). The version code underneath goes
+# up by itself with every build (the GitHub run number).
+env:
+  APP_VERSION: "1.0"
 
 jobs:
   build:
@@ -11,10 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Java 21: current Flutter / Android build tools need it (with Java 17
+      # the release lint check crashes: "NoSuchMethodError ... List.removeLast()").
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - uses: subosito/flutter-action@v2
         with:
@@ -184,7 +192,9 @@ jobs:
           cat android/app/proguard-rules.pro
           grep -n -A3 "release" android/app/build.gradle* | head -20
 
-      - run: flutter build apk --release
+      # Version name from APP_VERSION above; every build gets a higher version
+      # code (the GitHub run number), so each App Bundle uploads without clashing.
+      - run: flutter build apk --release --build-name=$APP_VERSION --build-number=${{ github.run_number }}
 
       # Prove which key actually signed the APK. Google sign-in only works
       # when this is the permanent key (SHA-1 64:C1:B2:F8:...:59:9E).
@@ -205,3 +215,21 @@ jobs:
         with:
           name: milkekhelo-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      # App Bundle (.aab) for Google Play Console — same code, same upload
+      # key, same version code as the APK above.
+      - run: flutter build appbundle --release --build-name=$APP_VERSION --build-number=${{ github.run_number }}
+
+      - name: Check the App Bundle signature
+        run: |
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          keytool -printcert -jarfile "$AAB" | tee /tmp/aabcert.txt
+          grep -qi "64:C1:B2:F8:74:6A:6B:D0:AD:6E:22:13:2D:27:0F:74:1C:40:59:9E" /tmp/aabcert.txt \
+            || { echo "::error::The App Bundle is NOT signed with the MilkeKhelo upload key"; exit 1; }
+          echo "Version $APP_VERSION (version code ${{ github.run_number }})"
+          cp "$AAB" "milkekhelo-v$APP_VERSION-${{ github.run_number }}.aab"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: milkekhelo-aab
+          path: milkekhelo-v${{ env.APP_VERSION }}-${{ github.run_number }}.aab
