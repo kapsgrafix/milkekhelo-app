@@ -23,7 +23,7 @@ public class CrashActivity extends Activity {
     root.setBackgroundColor(Color.WHITE);
 
     TextView title = new TextView(this);
-    title.setText("MilkeKhelo crashed — screenshot this or tap Share and send it to Claude");
+    title.setText("Sorry, MilkeKhelo stopped working. Please tap Share and send these details to talk@milkekhelo.com so we can fix it.");
     title.setTextSize(16);
     title.setTextColor(Color.BLACK);
     root.addView(title);
