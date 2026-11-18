@@ -16,6 +16,6 @@ class AuthConfig {
   static const String databaseUrl = 'https://milkekhelo-app-default-rtdb.asia-southeast1.firebasedatabase.app';
 
   /// Sent with REST calls so an Android-restricted API key accepts them.
-  static const String androidPackage = 'com.kapsgrafix.milkekhelo';
+  static const String androidPackage = 'com.milkekhelo.app'; // Play Store package (applicationId)
   static const String androidCertSha1 = '64C1B2F8746A6BD0AD6E22132D270F741C40599E';
 }
