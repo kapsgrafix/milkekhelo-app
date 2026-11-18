@@ -37,6 +37,17 @@ jobs:
 
       - run: flutter pub get
 
+      # Play Store package name (the app's permanent ID on Google Play).
+      # The code keeps its com.kapsgrafix.milkekhelo namespace; only the
+      # installed / store ID changes.
+      - name: Play Store package name
+        run: |
+          F=android/app/build.gradle.kts
+          [ -f "$F" ] || F=android/app/build.gradle
+          sed -i -E 's/applicationId( *=)? *"[^"]*"/applicationId\1 "com.milkekhelo.app"/' "$F"
+          grep -n 'applicationId' "$F"
+          grep -q '"com.milkekhelo.app"' "$F" || { echo "::error::applicationId was not set"; exit 1; }
+
       - name: Generate app icon
         run: dart run flutter_launcher_icons
 
